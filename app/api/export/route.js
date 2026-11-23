@@ -24,6 +24,11 @@ export async function GET(request) {
        from documents d where d.chapter_id = any($1::int[]) order by d.id`,
     [chapters.map((c) => c.id)]
   );
+  const sheets = await q(
+    `select distinct on (chapter_id, kind) chapter_id, kind, citations, created_at
+       from sheets where chapter_id = any($1::int[]) order by chapter_id, kind, id desc`,
+    [chapters.map((c) => c.id)]
+  );
   const overviews = await q(
     `select distinct on (scope_type, scope_id) scope_type, scope_id, content from overviews order by scope_type, scope_id, id desc`
   );
@@ -40,7 +45,12 @@ export async function GET(request) {
           overview: ov("module", m.id),
           chapters: chapters
             .filter((ch) => ch.module_id === m.id)
-            .map((ch) => ({ ...ch, overview: ov("chapter", ch.id), docs: docs.filter((d) => d.chapter_id === ch.id) })),
+            .map((ch) => ({
+              ...ch,
+              overview: ov("chapter", ch.id),
+              docs: docs.filter((d) => d.chapter_id === ch.id),
+              sheets: sheets.filter((s) => s.chapter_id === ch.id),
+            })),
         })),
     })),
   });

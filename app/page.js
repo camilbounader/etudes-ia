@@ -72,6 +72,9 @@ export default function Home() {
           <Link href="/bulk" className="px-4 py-2 rounded bg-white border whitespace-nowrap hover:bg-slate-100">
             Import en vrac
           </Link>
+          <Link href="/bilan" className="px-4 py-2 rounded bg-white border whitespace-nowrap hover:bg-slate-100">
+            Bilan
+          </Link>
           <Link href="/export" className="px-4 py-2 rounded bg-white border whitespace-nowrap hover:bg-slate-100">
             Télécharger
           </Link>

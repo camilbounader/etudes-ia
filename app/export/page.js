@@ -88,6 +88,28 @@ export default function ExportPage() {
                 }
               }
             }
+            for (const sh of ch.sheets || []) {
+              const segments = sh.citations?.segments;
+              if (!segments) continue;
+              say(`${ch.title} : fiche ${sh.kind.toUpperCase()}`);
+              try {
+                const { docxBlob } = await import("@/lib/docxExport");
+                const { figureImages } = await import("@/lib/pdfClient");
+                const { segmentsToMarked } = await import("@/lib/marked");
+                const { figureSourcesOf } = await import("@/lib/blocks");
+                const { full, cites } = segmentsToMarked(segments);
+                const images = await figureImages(figureSourcesOf(full, cites));
+                const blob = await docxBlob({
+                  title: `${sh.kind === "fr" ? "Fiche explicative" : "Revision sheet"} — ${ch.title}`,
+                  subtitle: `${c.code || c.title} · ${m.title}`,
+                  segments,
+                  images,
+                });
+                chf.file(`${sh.kind === "fr" ? "Fiche explicative (FR)" : "Revision sheet (EN)"}.docx`, blob);
+              } catch (e) {
+                say(`  ✗ fiche ${sh.kind} : ${e.message}`);
+              }
+            }
             if (refs.length) chf.file("_Références (Harvard).md", `# Références\n\n${refs.sort().map((r) => `- ${r}`).join("\n")}\n`);
           }
         }
