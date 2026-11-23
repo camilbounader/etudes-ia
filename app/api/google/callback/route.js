@@ -1,6 +1,6 @@
 import { isAuthed } from "@/lib/auth";
 import { ensureSchema } from "@/lib/schema";
-import { getGoogle, setGoogle } from "@/lib/google";
+import { getGoogle, setGoogle, googleClientId, googleClientSecret } from "@/lib/google";
 
 // Retour de Google : échange du code contre des jetons, gardés dans la base
 export async function GET(request) {
@@ -14,8 +14,8 @@ export async function GET(request) {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       code,
-      client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      client_id: googleClientId(),
+      client_secret: googleClientSecret(),
       redirect_uri: `${url.origin}/api/google/callback`,
       grant_type: "authorization_code",
     }),
