@@ -63,7 +63,12 @@ export default function Home() {
 
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">Études IA — mon master</h1>
+      <div className="flex items-baseline justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Études IA — mon master</h1>
+        <Link href="/scope/master/0" className="px-4 py-2 rounded bg-slate-900 text-white whitespace-nowrap">
+          Chat sur tout le master
+        </Link>
+      </div>
 
       {data.needsSetup && (
         <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
@@ -79,14 +84,20 @@ export default function Home() {
               {c.code && <span className="text-slate-500 mr-2">{c.code}</span>}
               {c.title}
             </h2>
-            <button onClick={() => remove("course", c.id, c.title)} className="text-xs text-slate-400 hover:text-red-600">supprimer</button>
+            <span className="text-xs">
+              <Link href={`/scope/course/${c.id}`} className="text-blue-700 hover:underline">chats du cours</Link>
+              <button onClick={() => remove("course", c.id, c.title)} className="ml-3 text-slate-400 hover:text-red-600">supprimer</button>
+            </span>
           </div>
           <div className="mt-3 space-y-3">
             {c.modules.map((m) => (
               <div key={m.id} className="border-l-2 border-slate-200 pl-3">
                 <div className="flex items-baseline justify-between">
                   <h3 className="font-medium">{m.title}</h3>
-                  <button onClick={() => remove("module", m.id, m.title)} className="text-xs text-slate-400 hover:text-red-600">supprimer</button>
+                  <span className="text-xs">
+                    <Link href={`/scope/module/${m.id}`} className="text-blue-700 hover:underline">chats du module</Link>
+                    <button onClick={() => remove("module", m.id, m.title)} className="ml-3 text-slate-400 hover:text-red-600">supprimer</button>
+                  </span>
                 </div>
                 <ul className="mt-1 space-y-1">
                   {m.chapters.map((ch) => (
@@ -96,6 +107,7 @@ export default function Home() {
                       </Link>
                       <span className="text-xs text-slate-500">
                         {ch.doc_count} doc{ch.doc_count > 1 ? "s" : ""}
+                        <Link href={`/scope/chapter/${ch.id}`} className="ml-3 text-blue-700 hover:underline">chats</Link>
                         <button onClick={() => remove("chapter", ch.id, ch.title)} className="ml-3 text-slate-400 hover:text-red-600">supprimer</button>
                       </span>
                     </li>

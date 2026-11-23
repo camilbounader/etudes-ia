@@ -71,7 +71,24 @@ function DocumentRow({ d, onChange }) {
             Décalage de pagination (page imprimée = page PDF + décalage ; vide = pas de numérotation)
             <input value={offset} onChange={(e) => setOffset(e.target.value)} className="mt-1 w-32 border rounded px-2 py-1" />
           </label>
-          <button onClick={save} className="px-3 py-1 rounded bg-slate-900 text-white">Enregistrer</button>
+          <div className="flex gap-2 items-center">
+            <button onClick={save} className="px-3 py-1 rounded bg-slate-900 text-white">Enregistrer</button>
+            <button
+              onClick={async () => {
+                try {
+                  const r = await api(`/api/documents/${d.id}`, { method: "PATCH", body: { redetect: true } });
+                  setIntext(r.intext);
+                  setReference(r.reference);
+                  onChange();
+                } catch (e) {
+                  alert(e.message);
+                }
+              }}
+              className="px-3 py-1 rounded bg-slate-200 hover:bg-slate-300"
+            >
+              Redétecter la référence
+            </button>
+          </div>
           <details>
             <summary className="cursor-pointer text-slate-600">Correspondance des pages ({detail.pages.length})</summary>
             <table className="mt-2 w-full text-xs">
@@ -207,7 +224,12 @@ export default function ChapterPage() {
       <nav className="text-sm text-slate-500">
         <Link href="/" className="hover:underline">Accueil</Link> / {chapter.course_code || chapter.course_title} / {chapter.module_title}
       </nav>
-      <h1 className="text-2xl font-semibold">{chapter.title}</h1>
+      <div className="flex items-baseline justify-between gap-4">
+        <h1 className="text-2xl font-semibold">{chapter.title}</h1>
+        <Link href={`/scope/chapter/${chapter.id}`} className="px-4 py-2 rounded bg-slate-900 text-white whitespace-nowrap">
+          Chats du chapitre
+        </Link>
+      </div>
 
       <section className="bg-white border rounded-xl p-4 space-y-3">
         <h2 className="font-semibold">Importer des PDF</h2>
