@@ -86,18 +86,34 @@ export default function Bilan() {
   }
 
   async function fixRefs() {
-    setBusy("Correction des références…");
     setLog([]);
-    for (const d of data.badRefs) {
+    let ok = 0;
+    let fail = 0;
+    for (const [n, d] of data.badRefs.entries()) {
+      setBusy(`Correction des références… ${n + 1}/${data.badRefs.length}`);
       try {
         const r = await api(`/api/documents/${d.id}`, { method: "PATCH", body: { redetect: true } });
         say(`✓ ${d.intext} → (${r.intext})`);
+        ok++;
       } catch (e) {
         say(`✗ ${d.title} : ${e.message}`);
+        fail++;
+        // crédits épuisés : inutile de continuer
+        if (/Crédits Anthropic|Limite de dépense|Clé Anthropic/.test(e.message)) break;
       }
     }
+    say(`Terminé : ${ok} corrigée(s), ${fail} en échec. Celles qui restent ci-dessous se corrigent à la main.`);
     await load();
     setBusy("");
+  }
+
+  async function saveRef(id, intext) {
+    try {
+      await api(`/api/documents/${id}`, { method: "PATCH", body: { intext } });
+      await load();
+    } catch (e) {
+      say(`✗ ${e.message}`);
+    }
   }
 
   if (!data) return <main className="p-6">Chargement… {log.join(" ")}</main>;
@@ -145,6 +161,29 @@ export default function Bilan() {
             Corriger automatiquement
           </button>
         </div>
+      )}
+      {data.badRefs.length > 0 && (
+        <details className="bg-white border rounded-lg p-3 text-sm">
+          <summary className="cursor-pointer">Voir et corriger à la main ({data.badRefs.length})</summary>
+          <p className="text-xs text-slate-500 my-2">
+            Écris la citation courte « Auteur, année » (ex. Chandler, 2014) puis Entrée, ou clique « C'est bon » si elle est déjà correcte.
+          </p>
+          <ul className="space-y-2">
+            {data.badRefs.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center gap-2">
+                <a href={`/document/${d.id}`} className="text-blue-700 hover:underline w-64 truncate" title={d.title}>{d.title}</a>
+                <input
+                  defaultValue={d.intext || ""}
+                  onKeyDown={(e) => e.key === "Enter" && saveRef(d.id, e.currentTarget.value.trim())}
+                  className="border rounded px-2 py-1 w-56"
+                />
+                <button onClick={() => api(`/api/documents/${d.id}`, { method: "PATCH", body: { refOk: true } }).then(load)}
+                  className="text-xs px-2 py-1 border rounded hover:bg-slate-100">C'est bon</button>
+                {d.error && <span className="text-xs text-red-700">{d.error.slice(0, 120)}</span>}
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
       {busy && <p className="text-slate-600">{busy}</p>}
       {log.length > 0 && <pre className="bg-white border rounded p-2 text-xs max-h-48 overflow-auto whitespace-pre-wrap">{log.join("\n")}</pre>}

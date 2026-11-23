@@ -5,9 +5,9 @@ import { q } from "@/lib/db";
 // Une référence « à corriger » : nom de fichier, nom Windows court (CHANDL~1),
 // référence complète au lieu de « Auteur, année », ou erreur de détection.
 const BAD_REF_SQL = `(
-  d.kind in ('reading','web','other') and (
-    d.intext = d.title or d.intext like '%~%' or d.intext like '%(%' or d.intext !~ '(\\d{4}|n\\.d\\.)'
-    or d.metadata ? 'error'
+  d.kind in ('reading','web','other') and not coalesce((d.metadata->>'ref_ok')::boolean, false) and (
+    d.intext is null or d.intext = d.title or d.intext like '%~%' or length(d.intext) > 90
+    or d.intext !~ '(\\d{4}|n\\.d\\.)' or d.metadata ? 'error'
   )
 )`;
 
@@ -40,7 +40,7 @@ export async function GET() {
       order by c.semester nulls last, c.code nulls last, c.id, m.position, m.id, ch.position, ch.id`
   );
   const badRefs = await q(
-    `select d.id, d.title, d.intext, d.chapter_id from documents d where ${BAD_REF_SQL} order by d.id`
+    `select d.id, d.title, d.intext, d.reference, d.chapter_id, d.metadata->>'error' as error from documents d where ${BAD_REF_SQL} order by d.id`
   );
   return Response.json({ rows, badRefs });
 }

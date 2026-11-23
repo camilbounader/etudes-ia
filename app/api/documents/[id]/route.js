@@ -55,6 +55,10 @@ export async function PATCH(request, { params }) {
     return Response.json({ ok: true, intext, reference });
   }
 
+  // Une référence saisie ou validée à la main n'est plus signalée dans le Bilan
+  if (b.intext !== undefined || b.refOk) {
+    await q(`update documents set metadata = (coalesce(metadata, '{}'::jsonb) - 'error') || '{"ref_ok":true}'::jsonb where id = $1`, [docId]);
+  }
   for (const field of ["intext", "reference", "kind", "status", "title"]) {
     if (b[field] !== undefined) {
       await q(`update documents set ${field} = $1 where id = $2`, [b[field], docId]);
