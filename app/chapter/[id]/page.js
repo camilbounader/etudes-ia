@@ -6,7 +6,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { importPdf, importScreens } from "@/lib/importer";
 
-const KINDS = { reading: "Lecture du corpus", slides: "Diapos du cours", screens: "Captures d'écran", page: "Page Canvas", video: "Vidéo", other: "Autre" };
+const KINDS = { reading: "Lecture du corpus", slides: "Diapos du cours", screens: "Captures d'écran", notes: "Fiche perso", assignment: "Devoir / examen", page: "Page Canvas", video: "Vidéo", other: "Autre" };
 
 function pageRange(d) {
   if (d.kind === "video") return d.status === "ready" ? `${d.chunk_count} extraits` : "transcription à coller";
@@ -236,7 +236,7 @@ export default function ChapterPage() {
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <select value={kind} onChange={(e) => setKind(e.target.value)} className="border rounded px-2 py-1">
-            {Object.entries(KINDS).filter(([k]) => !["page", "video"].includes(k)).map(([k, v]) => (
+            {Object.entries(KINDS).filter(([k]) => !["page", "video", "notes"].includes(k)).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}
           </select>
