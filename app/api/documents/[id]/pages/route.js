@@ -1,4 +1,5 @@
 import { guard } from "@/lib/auth";
+import { ensureSchema } from "@/lib/schema";
 import { q, vec } from "@/lib/db";
 import { embedTexts } from "@/lib/gemini";
 import { chunkPage, cleanPageText, chunkKind } from "@/lib/chunking";
@@ -10,6 +11,7 @@ export const maxDuration = 300;
 export async function POST(request, { params }) {
   const denied = await guard();
   if (denied) return denied;
+  await ensureSchema();
   const { id } = await params;
   const docId = Number(id);
   const { pages = [] } = await request.json();

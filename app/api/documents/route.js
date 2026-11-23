@@ -1,4 +1,5 @@
 import { guard } from "@/lib/auth";
+import { ensureSchema } from "@/lib/schema";
 import { q } from "@/lib/db";
 import { callClaude, parseJson, MODELS } from "@/lib/anthropic";
 import { harvardInText, harvardReference } from "@/lib/harvard";
@@ -9,6 +10,7 @@ export const maxDuration = 60;
 export async function GET(request) {
   const denied = await guard();
   if (denied) return denied;
+  await ensureSchema();
   const chapterId = Number(new URL(request.url).searchParams.get("chapterId"));
   const rows = await q(
     `select d.id, d.title, d.kind, d.blob_url, d.page_count, d.page_offset, d.page_confidence,
@@ -42,6 +44,7 @@ Pour "pages", utilise la plage indiquée dans le texte (en-tête de revue) ou, �
 export async function POST(request) {
   const denied = await guard();
   if (denied) return denied;
+  await ensureSchema();
   const b = await request.json();
   const { chapterId, title, kind = "reading", blobUrl, pageCount, offset, confidence, firstPagesText, printedRange } = b;
 
@@ -66,13 +69,15 @@ export async function POST(request) {
   }
   if (kind === "slides") metadata = { type: "slides", title };
 
+  // retire les caractères nuls, refusés par Postgres
+  metadata = JSON.parse(JSON.stringify(metadata).replace(/\\u0000/g, ""));
   const intext = metadata.authors?.length || metadata.year ? harvardInText(metadata) : title;
   const reference = metadata.title ? harvardReference(metadata) : title;
 
   const rows = await q(
     `insert into documents (chapter_id, title, kind, blob_url, page_count, page_offset, page_confidence, metadata, intext, reference)
      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning id`,
-    [chapterId, metadata.title || title, kind, blobUrl, pageCount, offset, confidence, JSON.stringify(metadata), intext, reference]
+    [chapterId, String(metadata.title || title).replace(/\u0000/g, ""), kind, blobUrl, pageCount, offset, confidence, JSON.stringify(metadata), intext, reference]
   );
   return Response.json({ id: rows[0].id, metadata, intext, reference });
 }
