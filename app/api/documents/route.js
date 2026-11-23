@@ -32,8 +32,8 @@ export async function POST(request) {
   const { chapterId, title, kind = "reading", blobUrl, pageCount, offset, confidence, firstPagesText, printedRange, canvasFileId } = b;
 
   const { metadata, intext, reference } =
-    kind === "slides"
-      ? { metadata: { type: "slides", title }, intext: title, reference: title }
+    kind === "slides" || kind === "screens"
+      ? { metadata: { type: kind, title }, intext: title, reference: title }
       : await detectMetadata({ title, printedRange, firstPagesText });
 
   const rows = await q(

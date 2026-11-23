@@ -12,7 +12,13 @@ export async function POST(request) {
       onBeforeGenerateToken: async () => {
         if (!(await isAuthed())) throw new Error("Non connecté");
         return {
-          allowedContentTypes: ["application/pdf"],
+          allowedContentTypes: [
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "image/webp",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          ],
           addRandomSuffix: true,
           maximumSizeInBytes: 200 * 1024 * 1024,
         };
