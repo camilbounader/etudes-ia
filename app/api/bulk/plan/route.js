@@ -25,7 +25,9 @@ Règles pour "skip" :
 - captures de diapos alors que le chapitre a déjà des diapos ("diapos : oui") ;
 - fichier vide, brouillon sans intérêt, ou sans rapport avec les cours.
 Les fiches ("notes") sont importées sauf si elles sont quasi vides (moins de 300 caractères).
-Réponds UNIQUEMENT par un tableau JSON : [{"i":0,"chapter":12,"kind":"reading","action":"import","reason":"…"}, …]`;
+Si un « chapitre déduit du dossier » est indiqué, garde-le sauf erreur manifeste.
+Réponds UNIQUEMENT par un tableau JSON, un objet par fichier, dans l'ordre :
+[{"f":"F1","name":"début du nom du fichier","chapter":12,"kind":"reading","action":"import","reason":"…"}, …]`;
 
 // POST { files: [{ path, name, ext, pages, textLength, textSample, imageCount }] }
 // -> plan d'import : chapitre, type, importer ou ignorer, raison.
@@ -60,7 +62,29 @@ export async function POST(request) {
       return { ...f, i, duplicateOf: dup ? { id: dup.id, title: dup.title, chapterId: dup.chapter_id } : null };
     });
 
-    // 2. Classement par Claude Haiku, par lots
+    // 2. Rattachement par nom de dossier : un dossier du chemin qui porte le
+    //    nom d'un chapitre (ex. « 1.1 The physical science of climate change »)
+    const chapNorm = chapters.map((c) => ({ id: c.id, n: normText(c.title) })).filter((c) => c.n.length >= 4);
+    for (const f of enriched) {
+      const folders = String(f.path).split("/").slice(0, -1).reverse();
+      for (const folder of folders) {
+        const fn = normText(folder);
+        if (fn.length < 4 && !/^\s*\d/.test(folder)) continue;
+        const exact = chapNorm.find((c) => c.n === fn);
+        const prefix = fn.length >= 4 ? exact || chapNorm.find((c) => fn.startsWith(c.n) || c.n.startsWith(fn)) : null;
+        // « 1.1 » au début : doit aussi correspondre (évite 1.1 / 1.10)
+        const num = folder.match(/^\s*(\d+(?:\.\d+)*)/)?.[1];
+        const byNum =
+          num && chapters.filter((c) => c.title.trim().match(/^(\d+(?:\.\d+)*)/)?.[1] === num.replace(/\.$/, ""));
+        const hit = exact || (byNum && byNum.length === 1 ? { id: byNum[0].id } : null) || prefix;
+        if (hit) {
+          f.folderChapter = hit.id;
+          break;
+        }
+      }
+    }
+
+    // 3. Classement par Claude Haiku, par lots (numérotation LOCALE au lot)
     const chapterList = chapters
       .map((c) => `${c.id}: ${c.code || c.course_title} > ${c.module_title} > ${c.title} (page Canvas : ${c.has_page ? "oui" : "non"} ; diapos : ${c.has_slides ? "oui" : "non"})`)
       .join("\n");
@@ -73,8 +97,10 @@ export async function POST(request) {
       batches.map(async (batch) => {
         const listing = batch
           .map(
-            (f) =>
-              `### Fichier ${f.i}\nchemin : ${f.path}\ntype : ${f.ext}${f.pages ? `, ${f.pages} pages` : ""}, ${f.textLength} caractères de texte, ${f.imageCount || 0} image(s)` +
+            (f, j) =>
+              `### F${j + 1}\nchemin : ${f.path}` +
+              (f.folderChapter ? `\nchapitre déduit du dossier : ${f.folderChapter}` : "") +
+              `\nnom : ${f.name}\ntype : ${f.ext}${f.pages ? `, ${f.pages} pages` : ""}, ${f.textLength} caractères de texte, ${f.imageCount || 0} image(s)` +
               (f.duplicateOf ? `\nDOUBLON PROBABLE de « ${f.duplicateOf.title} » (chapitre ${f.duplicateOf.chapterId})` : "") +
               `\ndébut du texte : ${String(f.textSample || "").slice(0, 700).replace(/\s+/g, " ")}`
           )
@@ -87,7 +113,14 @@ export async function POST(request) {
             messages: [{ role: "user", content: `CHAPITRES :\n${chapterList}\n\nFICHIERS :\n${listing}` }],
           });
           const arr = JSON.parse((text.match(/\[[\s\S]*\]/) || ["[]"])[0]);
-          for (const d of arr) decisions.set(Number(d.i), d);
+          for (const d of arr) {
+            const j = Number(String(d.f || "").replace(/\D/g, "")) - 1;
+            const f = batch[j];
+            if (!f) continue;
+            // contrôle : le nom renvoyé doit correspondre au fichier
+            if (d.name && !normName(f.name).startsWith(normName(d.name).slice(0, 8))) continue;
+            decisions.set(f.i, d);
+          }
         } catch (e) {
           for (const f of batch) decisions.set(f.i, { action: "import", kind: "other", chapter: null, reason: "tri automatique échoué : à vérifier" });
         }
@@ -97,7 +130,7 @@ export async function POST(request) {
     const validIds = new Set(chapters.map((c) => c.id));
     const plan = enriched.map((f) => {
       if (f.unsupported) return { i: f.i, path: f.path, action: "skip", kind: "other", chapter: null, reason: f.unsupported };
-      const d = decisions.get(f.i) || {};
+      const d = decisions.get(f.i) || { reason: f.duplicateOf ? "" : "non trié par l'IA : à vérifier" };
       let kind = d.kind || "other";
       if (f.ext === "image") kind = "screens";
       if (f.ext === "docx" && kind === "reading") kind = f.textLength < 300 && f.imageCount ? "screens" : "notes";
@@ -106,7 +139,7 @@ export async function POST(request) {
         path: f.path,
         action: f.duplicateOf ? "skip" : d.action === "skip" ? "skip" : "import",
         kind,
-        chapter: validIds.has(Number(d.chapter)) ? Number(d.chapter) : f.duplicateOf?.chapterId || null,
+        chapter: f.folderChapter || (validIds.has(Number(d.chapter)) ? Number(d.chapter) : f.duplicateOf?.chapterId || null),
         reason: f.duplicateOf ? `déjà importé : ${f.duplicateOf.title}`.slice(0, 120) : d.reason || "",
       };
     });
