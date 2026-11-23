@@ -72,6 +72,9 @@ export default function Home() {
           <Link href="/bulk" className="px-4 py-2 rounded bg-white border whitespace-nowrap hover:bg-slate-100">
             Import en vrac
           </Link>
+          <Link href="/export" className="px-4 py-2 rounded bg-white border whitespace-nowrap hover:bg-slate-100">
+            Télécharger
+          </Link>
           <Link href="/scope/master/0" className="px-4 py-2 rounded bg-slate-900 text-white whitespace-nowrap">
             Chat sur tout le master
           </Link>
