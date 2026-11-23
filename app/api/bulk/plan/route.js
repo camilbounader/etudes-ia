@@ -91,7 +91,7 @@ export async function POST(request) {
     const todo = enriched.filter((f) => !f.unsupported);
     const decisions = new Map();
     const batches = [];
-    for (let k = 0; k < todo.length; k += 15) batches.push(todo.slice(k, k + 15));
+    for (let k = 0; k < todo.length; k += 10) batches.push(todo.slice(k, k + 10));
 
     await Promise.all(
       batches.map(async (batch) => {
@@ -108,19 +108,24 @@ export async function POST(request) {
         try {
           const { text } = await callClaude({
             model: MODELS.fast,
-            max_tokens: 3000,
+            max_tokens: 4000,
             system: PROMPT,
             messages: [{ role: "user", content: `CHAPITRES :\n${chapterList}\n\nFICHIERS :\n${listing}` }],
           });
           const arr = JSON.parse((text.match(/\[[\s\S]*\]/) || ["[]"])[0]);
-          for (const d of arr) {
-            const j = Number(String(d.f || "").replace(/\D/g, "")) - 1;
-            const f = batch[j];
-            if (!f) continue;
-            // contrôle : le nom renvoyé doit correspondre au fichier
-            if (d.name && !normName(f.name).startsWith(normName(d.name).slice(0, 8))) continue;
+          arr.forEach((d, pos) => {
+            // F3 -> 3e fichier du lot ; à défaut, la position dans la réponse
+            const num = Number(String(d.f ?? "").replace(/\D/g, ""));
+            const f = batch[num >= 1 ? num - 1 : pos];
+            if (!f) return;
+            // contrôle souple : si un nom est renvoyé, il doit ressembler au fichier
+            if (d.name) {
+              const a = normName(f.name);
+              const b = normName(String(d.name).split("/").pop());
+              if (a && b && !a.includes(b.slice(0, 6)) && !b.includes(a.slice(0, 6))) return;
+            }
             decisions.set(f.i, d);
-          }
+          });
         } catch (e) {
           for (const f of batch) decisions.set(f.i, { action: "import", kind: "other", chapter: null, reason: "tri automatique échoué : à vérifier" });
         }
@@ -130,8 +135,11 @@ export async function POST(request) {
     const validIds = new Set(chapters.map((c) => c.id));
     const plan = enriched.map((f) => {
       if (f.unsupported) return { i: f.i, path: f.path, action: "skip", kind: "other", chapter: null, reason: f.unsupported };
-      const d = decisions.get(f.i) || { reason: f.duplicateOf ? "" : "non trié par l'IA : à vérifier" };
-      let kind = d.kind || "other";
+      const d = decisions.get(f.i) || { reason: f.duplicateOf ? "" : "classé sans l'IA : à vérifier" };
+      // type par défaut, sans IA
+      const guess =
+        f.ext === "pdf" ? "reading" : f.ext === "image" ? "screens" : f.ext === "docx" ? (f.textLength >= 300 ? "notes" : "screens") : "other";
+      let kind = d.kind || guess;
       if (f.ext === "image") kind = "screens";
       if (f.ext === "docx" && kind === "reading") kind = f.textLength < 300 && f.imageCount ? "screens" : "notes";
       return {
