@@ -33,6 +33,7 @@ export default function Home() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [alerts, setAlerts] = useState([]);
+  const [deadlines, setDeadlines] = useState([]);
 
   async function load() {
     try {
@@ -43,6 +44,7 @@ export default function Home() {
   }
   useEffect(() => {
     load();
+    api("/api/deadlines").then((d) => setDeadlines(d.items || [])).catch(() => {});
     // alerte budget (80 %)
     api("/api/usage")
       .then((u) => {
@@ -104,6 +106,27 @@ export default function Home() {
         <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm">
           Budget presque atteint : {alerts.join(" · ")}. <Link href="/couts" className="text-blue-700 underline">Voir les coûts et recharger</Link>
         </div>
+      )}
+
+      {deadlines.length > 0 && (
+        <section className="bg-white border rounded-xl p-4">
+          <h2 className="font-semibold mb-2">Prochaines échéances (Canvas)</h2>
+          <ul className="text-sm space-y-1">
+            {deadlines.slice(0, 6).map((d) => {
+              const days = Math.ceil((Date.parse(d.due_at) - Date.now()) / 86400000);
+              return (
+                <li key={d.id} className="flex justify-between gap-3">
+                  <a href={d.url} target="_blank" className="text-blue-700 hover:underline">[{d.course}] {d.name}</a>
+                  <span className={`whitespace-nowrap ${days <= 2 ? "text-red-700 font-medium" : days <= 7 ? "text-amber-700" : "text-slate-500"}`}>
+                    {new Date(d.due_at).toLocaleString("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    {days >= 0 ? ` · J-${days}` : " · passé"}
+                    {d.submitted ? " · rendu ✓" : ""}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
 
       {data.needsSetup && (

@@ -8,6 +8,33 @@ import { DEFAULT_BG, DEFAULT_PHOTOS } from "@/lib/backgrounds";
 export default function Parametres() {
   const [bg, setBg] = useState(DEFAULT_BG);
   const [busy, setBusy] = useState("");
+  const [g, setG] = useState(null);
+  const [gBusy, setGBusy] = useState("");
+  const [rootName, setRootName] = useState("");
+
+  async function loadGoogle() {
+    const s = await api("/api/google/status");
+    setG(s);
+    setRootName(s.drive?.rootName || "UiT The Arctic University of Norway - Master");
+  }
+  useEffect(() => {
+    loadGoogle().catch(() => {});
+  }, []);
+
+  async function syncNow() {
+    if (rootName && rootName !== g?.drive?.rootName) await api("/api/google/drive", { method: "PUT", body: { rootName } });
+    let remaining = 1;
+    let total = 0;
+    while (remaining > 0) {
+      setGBusy(`Synchronisation Drive… ${total} élément(s) envoyé(s)`);
+      const r = await api("/api/google/drive", { method: "POST" });
+      total += r.done;
+      remaining = r.remaining;
+      if (!r.done && remaining) break; // rien n'avance : erreur à lire plus bas
+    }
+    setGBusy("");
+    await loadGoogle();
+  }
 
   useEffect(() => {
     api("/api/settings?key=backgrounds").then((d) => d.value && setBg({ ...DEFAULT_BG, ...d.value })).catch(() => {});
@@ -44,6 +71,44 @@ export default function Parametres() {
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Paramètres</h1>
+
+      <section className="bg-white border rounded-xl p-4 space-y-3">
+        <h2 className="font-semibold">Google Drive et Agenda</h2>
+        {!g ? (
+          <p className="text-sm text-slate-500">Chargement…</p>
+        ) : !g.configured ? (
+          <p className="text-sm text-amber-700">Ajoute GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans Vercel (les mêmes que JARVIS), puis Redeploy.</p>
+        ) : !g.connected ? (
+          <a href="/api/google/login" className="inline-block px-3 py-2 rounded bg-slate-900 text-white text-sm">Connecter Google</a>
+        ) : (
+          <div className="space-y-3 text-sm">
+            <p>
+              Connecté : <strong>{g.email || "compte Google"}</strong>{" "}
+              <button onClick={async () => { await api("/api/google/status", { method: "DELETE" }); loadGoogle(); }} className="text-xs text-slate-500 underline ml-2">déconnecter</button>
+            </p>
+            <div className="space-y-2">
+              <label className="block">Dossier principal dans Drive
+                <input value={rootName} onChange={(e) => setRootName(e.target.value)} className="mt-1 w-full border rounded px-2 py-1" />
+              </label>
+              <div className="flex flex-wrap gap-2 items-center">
+                <button onClick={syncNow} disabled={!!gBusy} className="px-3 py-1.5 rounded bg-slate-900 text-white disabled:opacity-50">Synchroniser Drive maintenant</button>
+                <button onClick={async () => { setGBusy("Envoi des échéances…"); try { const r = await api("/api/google/calendar", { method: "POST" }); alert(`${r.created} échéance(s) ajoutée(s), ${r.updated} mise(s) à jour dans Google Agenda.`); } catch (e) { alert(e.message); } setGBusy(""); }}
+                  disabled={!!gBusy} className="px-3 py-1.5 rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-50">Envoyer les échéances dans Agenda</button>
+                {g.drive?.rootId && <a href={`https://drive.google.com/drive/folders/${g.drive.rootId}`} target="_blank" className="text-blue-700 underline">Ouvrir le dossier Drive ↗</a>}
+              </div>
+              {gBusy && <p className="text-slate-600">{gBusy}</p>}
+              <p className="text-xs text-slate-500">
+                Synchronisation automatique chaque nuit (3 h) : nouveaux documents, fiches (en Google Docs), transcriptions et « Mes travaux ».
+                {g.drive?.lastSync && ` Dernière : ${new Date(g.drive.lastSync).toLocaleString("fr-FR")}.`}
+                {g.drive?.remaining ? ` Reste ${g.drive.remaining} élément(s).` : ""}
+              </p>
+              {g.drive?.lastError && <p className="text-xs text-amber-700">Dernière erreur : {g.drive.lastError}</p>}
+              <button onClick={async () => { if (confirm("Tout renvoyer dans un nouveau dossier Drive ? (l'ancien reste, à supprimer à la main)")) { await api("/api/google/drive", { method: "PUT", body: { reset: true } }); loadGoogle(); } }}
+                className="text-xs text-slate-500 underline">Tout renvoyer depuis zéro</button>
+            </div>
+          </div>
+        )}
+      </section>
 
       <section className="bg-white/90 border rounded-xl p-4 space-y-4">
         <h2 className="font-semibold">Photos de fond</h2>

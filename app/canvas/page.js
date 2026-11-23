@@ -140,6 +140,7 @@ export default function CanvasImport() {
         }
       }
       say("Terminé.");
+    fetch("/api/google/drive", { method: "POST" }).catch(() => {}); // copie vers Drive si connecté
     } catch (e) {
       say(`✗ ${e.message}`);
     }

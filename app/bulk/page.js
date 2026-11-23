@@ -66,6 +66,7 @@ export default function BulkImport() {
       else await importPdf({ source: file, name: file.name, chapterId: row.chapter, kind: row.kind === "notes" ? "notes" : row.kind, say });
     }
     say("Terminé.");
+    fetch("/api/google/drive", { method: "POST" }).catch(() => {}); // copie vers Drive si connecté
     setBusy(false);
   }
 
