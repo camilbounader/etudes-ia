@@ -68,6 +68,7 @@ function DocumentRow({ d, onChange }) {
         <a href={d.blob_url} target="_blank" className="text-sm text-blue-700 hover:underline">
           {d.kind === "video" ? "Vidéo" : d.kind === "page" ? "Page" : "PDF"}
         </a>
+        <Link href={`/document/${d.id}`} className="text-sm text-slate-600 hover:underline">Voir le texte</Link>
         <button onClick={toggle} className="text-sm text-slate-600 hover:underline">{open ? "Fermer" : "Vérifier"}</button>
         <button onClick={remove} className="text-sm text-slate-400 hover:text-red-600">Supprimer</button>
       </div>
@@ -224,7 +225,7 @@ export default function ChapterPage() {
       <div className="flex items-baseline justify-between gap-4">
         <h1 className="text-2xl font-semibold">{chapter.title}</h1>
         <Link href={`/scope/chapter/${chapter.id}`} className="px-4 py-2 rounded bg-slate-900 text-white whitespace-nowrap">
-          Chats du chapitre
+          Aperçu et chats
         </Link>
       </div>
 

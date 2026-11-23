@@ -90,7 +90,7 @@ export default function Home() {
               {c.title}
             </h2>
             <span className="text-xs">
-              <Link href={`/scope/course/${c.id}`} className="text-blue-700 hover:underline">chats du cours</Link>
+              <Link href={`/scope/course/${c.id}`} className="text-blue-700 hover:underline">aperçu & chats du cours</Link>
               <button onClick={() => remove("course", c.id, c.title)} className="ml-3 text-slate-400 hover:text-red-600">supprimer</button>
             </span>
           </div>
@@ -100,7 +100,7 @@ export default function Home() {
                 <div className="flex items-baseline justify-between">
                   <h3 className="font-medium">{m.title}</h3>
                   <span className="text-xs">
-                    <Link href={`/scope/module/${m.id}`} className="text-blue-700 hover:underline">chats du module</Link>
+                    <Link href={`/scope/module/${m.id}`} className="text-blue-700 hover:underline">aperçu & chats du module</Link>
                     <button onClick={() => remove("module", m.id, m.title)} className="ml-3 text-slate-400 hover:text-red-600">supprimer</button>
                   </span>
                 </div>
@@ -112,7 +112,7 @@ export default function Home() {
                       </Link>
                       <span className="text-xs text-slate-500">
                         {ch.doc_count} doc{ch.doc_count > 1 ? "s" : ""}
-                        <Link href={`/scope/chapter/${ch.id}`} className="ml-3 text-blue-700 hover:underline">chats</Link>
+                        <Link href={`/scope/chapter/${ch.id}`} className="ml-3 text-blue-700 hover:underline">aperçu & chats</Link>
                         <button onClick={() => remove("chapter", ch.id, ch.title)} className="ml-3 text-slate-400 hover:text-red-600">supprimer</button>
                       </span>
                     </li>

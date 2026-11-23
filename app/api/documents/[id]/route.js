@@ -16,6 +16,14 @@ export async function GET(request, { params }) {
     `select pdf_page, printed_page, left(text, 160) as preview from pages where document_id = $1 order by pdf_page`,
     [Number(id)]
   );
+  // ?full=1 : tout le texte indexé (pour vérifier une transcription ou une capture)
+  if (new URL(request.url).searchParams.get("full")) {
+    const chunks = await q(
+      `select pdf_page, printed_page, content, kind from chunks where document_id = $1 order by pdf_page, id`,
+      [Number(id)]
+    );
+    return Response.json({ document: docs[0], pages, chunks });
+  }
   return Response.json({ document: docs[0], pages });
 }
 

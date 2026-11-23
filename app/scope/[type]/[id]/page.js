@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import Answer from "@/components/Answer";
 
 // Liste des conversations d'un périmètre (chapitre, module, cours, master)
 export default function ScopePage() {
@@ -11,6 +12,9 @@ export default function ScopePage() {
   const router = useRouter();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const [overview, setOverview] = useState(null);
+  const [ovBusy, setOvBusy] = useState(false);
+  const [ovOpen, setOvOpen] = useState(true);
 
   async function load() {
     try {
@@ -21,7 +25,22 @@ export default function ScopePage() {
   }
   useEffect(() => {
     load();
+    api(`/api/overview?scopeType=${type}&scopeId=${id}`)
+      .then((d) => setOverview(d.overview))
+      .catch(() => {});
   }, [type, id]);
+
+  async function generate() {
+    setOvBusy(true);
+    try {
+      const d = await api("/api/overview", { method: "POST", body: { scopeType: type, scopeId: id } });
+      setOverview(d.overview);
+      setOvOpen(true);
+    } catch (e) {
+      alert(e.message);
+    }
+    setOvBusy(false);
+  }
 
   async function create() {
     const r = await api("/api/conversations", { method: "POST", body: { scopeType: type, scopeId: id } });
@@ -59,6 +78,29 @@ export default function ScopePage() {
           Nouvelle conversation
         </button>
       </div>
+      <section className="bg-white border rounded-xl p-4">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="font-semibold cursor-pointer" onClick={() => setOvOpen(!ovOpen)}>
+            Aperçu {overview && <span className="text-slate-400 font-normal">{ovOpen ? "▾" : "▸"}</span>}
+          </h2>
+          <button onClick={generate} disabled={ovBusy} className="text-sm px-3 py-1 rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-50">
+            {ovBusy ? "Rédaction en cours (environ 30 s)…" : overview ? "Regénérer" : "Générer l'aperçu"}
+          </button>
+        </div>
+        {!overview && !ovBusy && (
+          <p className="text-sm text-slate-500 mt-2">
+            Une fiche courte pour dégrossir ce périmètre : idées clés, liens avec le reste du master et conseils pour l'aborder.
+          </p>
+        )}
+        {overview && ovOpen && (
+          <div className="mt-3">
+            <Answer message={overview} />
+            <p className="text-xs text-slate-400 mt-2">Générée le {new Date(overview.created_at).toLocaleString("fr-FR")}</p>
+          </div>
+        )}
+      </section>
+
+      <h2 className="font-semibold">Conversations</h2>
       {data.conversations.length === 0 && (
         <p className="text-slate-500">Aucune conversation pour l'instant.</p>
       )}
