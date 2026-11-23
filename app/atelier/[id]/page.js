@@ -117,7 +117,8 @@ export default function AtelierPage() {
   async function load() {
     const r = await api(`/api/assignments/${id}`);
     setD(r);
-    if (!declaration && r.assignment.rules?.ai_level) setDeclaration(AI_DECLARATIONS[r.assignment.rules.ai_level] || "");
+    // la déclaration suit le niveau que TU as réellement utilisé, jamais le maximum autorisé
+    if (!declaration && r.assignment.rules?.ai_used) setDeclaration(AI_DECLARATIONS[r.assignment.rules.ai_used] || "");
   }
   useEffect(() => {
     load();
@@ -201,7 +202,9 @@ export default function AtelierPage() {
 
       {rules.ai_level && (
         <div className={`rounded-lg p-3 text-sm border ${rules.ai_level <= 2 ? "bg-amber-50 border-amber-300" : "bg-blue-50 border-blue-200"}`}>
-          <strong>IA autorisée : niveau {rules.ai_level}.</strong> {AI_LEVELS[rules.ai_level]}
+          <strong>Maximum autorisé par le sujet : niveau {rules.ai_level}.</strong> {AI_LEVELS[rules.ai_level]}
+          {" "}Tu peux utiliser moins : c'est le niveau réellement utilisé qui compte pour la déclaration.{" "}
+          <Link href="/declarations" className="text-blue-700 underline">Toutes les déclarations</Link>
           {rules.ai_level <= 2 && " Les modèles de l'outil servent à t'inspirer : rédige ta propre version."}
         </div>
       )}
@@ -230,9 +233,14 @@ export default function AtelierPage() {
             <label>Minimum <input type="number" defaultValue={rules.words_min || ""} onBlur={(e) => setRule("words_min", Number(e.target.value) || null)} className="border rounded px-2 py-1 w-full" /></label>
             <label>Maximum <input type="number" defaultValue={rules.words_max || ""} onBlur={(e) => setRule("words_max", Number(e.target.value) || null)} className="border rounded px-2 py-1 w-full" /></label>
             <label>Lectures minimum <input type="number" defaultValue={rules.min_readings || ""} onBlur={(e) => setRule("min_readings", Number(e.target.value) || null)} className="border rounded px-2 py-1 w-full" /></label>
-            <label>Niveau d'IA
-              <select value={rules.ai_level || ""} onChange={(e) => { setRule("ai_level", Number(e.target.value) || null); setDeclaration(AI_DECLARATIONS[e.target.value] || ""); }} className="border rounded px-2 py-1 w-full">
+            <label>IA : maximum autorisé
+              <select value={rules.ai_level || ""} onChange={(e) => setRule("ai_level", Number(e.target.value) || null)} className="border rounded px-2 py-1 w-full">
                 <option value="">?</option>{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+            <label>IA : niveau que j'utilise
+              <select value={rules.ai_used || ""} onChange={(e) => { setRule("ai_used", Number(e.target.value) || null); setDeclaration(AI_DECLARATIONS[e.target.value] || ""); }} className="border rounded px-2 py-1 w-full">
+                <option value="">à choisir</option>{[1, 2, 3, 4].map((n) => <option key={n} value={n} disabled={rules.ai_level && n > rules.ai_level}>{n}</option>)}
               </select>
             </label>
             <label className="flex items-center gap-2 mt-5"><input type="checkbox" checked={!!rules.page_numbers_required} onChange={(e) => setRule("page_numbers_required", e.target.checked)} /> Page dans chaque citation</label>
@@ -323,7 +331,10 @@ export default function AtelierPage() {
         <section className="space-y-3 bg-white border rounded-lg p-4">
           <p className="text-sm">Le Word reprend <strong>tes versions</strong> (pas les modèles), en Times New Roman 12, interligne 1,5, avec la liste de références Harvard des lectures que tu cites et la déclaration d'usage de l'IA.</p>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={withHeadings} onChange={(e) => setWithHeadings(e.target.checked)} /> Garder les titres des parties</label>
-          <label className="block text-sm font-medium">Déclaration d'usage de l'IA (modifiable)</label>
+          <label className="block text-sm font-medium">
+            Déclaration d'usage de l'IA (modifiable, vide = pas de déclaration dans le Word) ·{" "}
+            <Link href="/declarations" target="_blank" className="text-blue-700 underline font-normal">voir les 4 modèles</Link>
+          </label>
           <textarea value={declaration} onChange={(e) => setDeclaration(e.target.value)} rows={5} className="w-full border rounded p-2 text-sm" />
           <button onClick={downloadWord} className="px-3 py-1.5 rounded bg-green-700 text-white text-sm">Télécharger en Word</button>
         </section>

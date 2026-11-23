@@ -26,7 +26,10 @@ export default function Ateliers() {
 
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">Atelier de devoir</h1>
+      <div className="flex items-baseline justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Atelier de devoir</h1>
+        <Link href="/declarations" className="text-sm text-blue-700 hover:underline">Déclarations d'usage de l'IA (niveaux 1 à 4)</Link>
+      </div>
       <p className="text-slate-600 text-sm">
         Pour les examens, essais, learning diaries et le mémoire : sujet → brainstorm → plan → rédaction partie par partie → relecture → Word.
       </p>
