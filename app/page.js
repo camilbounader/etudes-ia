@@ -35,6 +35,17 @@ export default function Home() {
   const [alerts, setAlerts] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
 
+  async function loadDeadlines(fresh) {
+    try {
+      const d = await api(`/api/deadlines${fresh ? "?fresh=1" : ""}`);
+      setDeadlines(d.items || []);
+    } catch {}
+  }
+  async function markDeadline(id, mark) {
+    await api("/api/deadlines", { method: "PATCH", body: { id, mark } });
+    loadDeadlines();
+  }
+
   async function load() {
     try {
       setData(await api("/api/structure"));
@@ -44,7 +55,7 @@ export default function Home() {
   }
   useEffect(() => {
     load();
-    api("/api/deadlines").then((d) => setDeadlines(d.items || [])).catch(() => {});
+    loadDeadlines();
     // alerte budget (80 %)
     api("/api/usage")
       .then((u) => {
@@ -110,17 +121,42 @@ export default function Home() {
 
       {deadlines.length > 0 && (
         <section className="bg-white border rounded-xl p-4">
-          <h2 className="font-semibold mb-2">Prochaines échéances (Canvas)</h2>
-          <ul className="text-sm space-y-1">
-            {deadlines.slice(0, 6).map((d) => {
-              const days = Math.ceil((Date.parse(d.due_at) - Date.now()) / 86400000);
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="font-semibold">Prochaines échéances (Canvas)</h2>
+            <button onClick={() => loadDeadlines(true)} className="text-xs text-blue-700 hover:underline">Actualiser depuis Canvas</button>
+          </div>
+          <ul className="text-sm space-y-2">
+            {deadlines.slice(0, 8).map((d) => {
+              const due = new Date(d.due_at);
+              const today = new Date();
+              // jours calendaires (demain = J-1), pas des tranches de 24 h
+              const days = Math.round((new Date(due.getFullYear(), due.getMonth(), due.getDate()) - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
+              const late = due.getTime() < Date.now();
+              const color = d.submitted ? "text-green-700" : late || days <= 2 ? "text-red-700 font-medium" : days <= 7 ? "text-amber-700" : "text-slate-500";
               return (
-                <li key={d.id} className="flex justify-between gap-3">
+                <li key={d.id} className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                   <a href={d.url} target="_blank" className="text-blue-700 hover:underline">[{d.course}] {d.name}</a>
-                  <span className={`whitespace-nowrap ${days <= 2 ? "text-red-700 font-medium" : days <= 7 ? "text-amber-700" : "text-slate-500"}`}>
-                    {new Date(d.due_at).toLocaleString("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                    {days >= 0 ? ` · J-${days}` : " · passé"}
-                    {d.submitted ? " · rendu ✓" : ""}
+                  <span className="flex items-center gap-2 whitespace-nowrap">
+                    <span className={color}>
+                      {due.toLocaleString("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      {late ? " · passé" : days === 0 ? " · aujourd'hui" : ` · J-${days}`}
+                      {d.submitted ? " · rendu ✓" : " · à rendre"}
+                    </span>
+                    <button
+                      onClick={() => markDeadline(d.id, d.submitted ? "todo" : "done")}
+                      className="text-xs px-2 py-0.5 border rounded hover:bg-slate-100"
+                      title="Corriger à la main si Canvas se trompe"
+                    >
+                      {d.submitted ? "Pas rendu" : "Marquer rendu"}
+                    </button>
+                    {d.mark && d.mark !== "hidden" && (
+                      <button onClick={() => markDeadline(d.id, null)} className="text-xs text-slate-500 hover:underline" title="Revenir à ce que dit Canvas">
+                        auto
+                      </button>
+                    )}
+                    <button onClick={() => markDeadline(d.id, "hidden")} className="text-xs text-slate-400 hover:text-red-600" title="Masquer cette échéance">
+                      ✕
+                    </button>
                   </span>
                 </li>
               );
