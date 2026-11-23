@@ -1,19 +1,18 @@
 "use client";
 
-// Affiche une réponse : mise en forme simple (titres, gras, italique, listes)
-// et références Harvard cliquables à l'endroit exact où Claude cite le corpus.
+// Affiche une réponse ou une fiche : titres, paragraphes, listes, tableaux,
+// encadrés, et références Harvard cliquables à l'endroit exact des citations.
+import { segmentsToMarked } from "@/lib/marked";
+import { parseBlocks, parseInline } from "@/lib/blocks";
 
-function inline(text, cites, keyBase) {
-  // découpe autour des marqueurs de citation ⟦n⟧, puis du gras / italique
-  const parts = String(text).split(/(⟦\d+⟧)/g);
-  return parts.map((part, i) => {
-    const m = part.match(/^⟦(\d+)⟧$/);
-    if (m) {
-      const c = cites[Number(m[1])];
+function Inline({ text, cites }) {
+  return parseInline(text).map((p, i) => {
+    if (p.type === "cite") {
+      const c = cites[p.index];
       if (!c) return null;
       return (
         <a
-          key={`${keyBase}-c${i}`}
+          key={i}
           href={c.url || undefined}
           target="_blank"
           title={c.quote}
@@ -23,74 +22,68 @@ function inline(text, cites, keyBase) {
         </a>
       );
     }
-    const pieces = part.split(/(\*\*[^*]+\*\*|\*[^*\s][^*]*\*)/g);
-    return pieces.map((p, j) => {
-      if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={`${keyBase}-${i}-${j}`}>{p.slice(2, -2)}</strong>;
-      if (/^\*[^*]+\*$/.test(p)) return <em key={`${keyBase}-${i}-${j}`}>{p.slice(1, -1)}</em>;
-      return <span key={`${keyBase}-${i}-${j}`}>{p}</span>;
-    });
+    if (p.bold) return <strong key={i}>{p.text}</strong>;
+    if (p.italic) return <em key={i}>{p.text}</em>;
+    return <span key={i}>{p.text}</span>;
   });
 }
 
 export default function Answer({ message }) {
   const segments = message?.citations?.segments;
-  if (!segments) {
-    return <div className="whitespace-pre-wrap">{message.content}</div>;
-  }
+  if (!segments) return <div className="whitespace-pre-wrap">{message?.content}</div>;
+  const { full, cites } = segmentsToMarked(segments);
 
-  // Texte complet avec marqueurs ⟦n⟧ à la fin de chaque passage cité
-  const cites = [];
-  let full = "";
-  for (const s of segments) {
-    full += s.text;
-    for (const c of s.cites || []) {
-      cites.push(c);
-      full += `⟦${cites.length - 1}⟧`;
-    }
-  }
-
-  const lines = full.split("\n");
-  const out = [];
-  let list = null;
-  const flush = () => {
-    if (list) {
-      const Tag = list.ordered ? "ol" : "ul";
-      out.push(
-        <Tag key={`l${out.length}`} className={`${list.ordered ? "list-decimal" : "list-disc"} pl-6 space-y-1`}>
-          {list.items}
-        </Tag>
-      );
-      list = null;
-    }
-  };
-
-  lines.forEach((line, idx) => {
-    const h = line.match(/^(#{1,4})\s+(.*)$/);
-    const ul = line.match(/^\s*[-•]\s+(.*)$/);
-    const ol = line.match(/^\s*\d+[.)]\s+(.*)$/);
-    if (h) {
-      flush();
-      const size = h[1].length <= 2 ? "text-lg" : "text-base";
-      out.push(
-        <p key={idx} className={`${size} font-semibold mt-3`}>
-          {inline(h[2], cites, idx)}
-        </p>
-      );
-    } else if (ul || ol) {
-      const ordered = !!ol;
-      if (!list || list.ordered !== ordered) {
-        flush();
-        list = { ordered, items: [] };
-      }
-      list.items.push(<li key={idx}>{inline((ul || ol)[1], cites, idx)}</li>);
-    } else if (!line.trim()) {
-      flush();
-    } else {
-      flush();
-      out.push(<p key={idx}>{inline(line, cites, idx)}</p>);
-    }
-  });
-  flush();
-
-  return <div className="space-y-2 leading-relaxed">{out}</div>;
+  return (
+    <div className="space-y-2 leading-relaxed">
+      {parseBlocks(full).map((b, i) => {
+        if (b.type === "heading")
+          return (
+            <p key={i} className={`${b.level <= 2 ? "text-lg mt-4" : "text-base mt-3"} font-semibold`}>
+              <Inline text={b.text} cites={cites} />
+            </p>
+          );
+        if (b.type === "list") {
+          const Tag = b.ordered ? "ol" : "ul";
+          return (
+            <Tag key={i} className={`${b.ordered ? "list-decimal" : "list-disc"} pl-6 space-y-1`}>
+              {b.items.map((it, j) => (
+                <li key={j}>
+                  <Inline text={it} cites={cites} />
+                </li>
+              ))}
+            </Tag>
+          );
+        }
+        if (b.type === "table")
+          return (
+            <div key={i} className="overflow-x-auto">
+              <table className="text-sm border-collapse w-full">
+                <tbody>
+                  {b.rows.map((row, r) => (
+                    <tr key={r} className={r === 0 ? "bg-slate-100 font-semibold" : "border-t"}>
+                      {row.map((cell, c) => (
+                        <td key={c} className="border px-2 py-1 align-top">
+                          <Inline text={cell} cites={cites} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        if (b.type === "quote")
+          return (
+            <blockquote key={i} className="border-l-4 border-amber-300 bg-amber-50 pl-3 py-1">
+              <Inline text={b.text} cites={cites} />
+            </blockquote>
+          );
+        return (
+          <p key={i}>
+            <Inline text={b.text} cites={cites} />
+          </p>
+        );
+      })}
+    </div>
+  );
 }
