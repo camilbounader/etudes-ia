@@ -65,9 +65,14 @@ export default function Home() {
     <main className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="flex items-baseline justify-between gap-4">
         <h1 className="text-2xl font-semibold">Études IA — mon master</h1>
-        <Link href="/scope/master/0" className="px-4 py-2 rounded bg-slate-900 text-white whitespace-nowrap">
-          Chat sur tout le master
-        </Link>
+        <span className="flex gap-2">
+          <Link href="/canvas" className="px-4 py-2 rounded bg-white border whitespace-nowrap hover:bg-slate-100">
+            Importer depuis Canvas
+          </Link>
+          <Link href="/scope/master/0" className="px-4 py-2 rounded bg-slate-900 text-white whitespace-nowrap">
+            Chat sur tout le master
+          </Link>
+        </span>
       </div>
 
       {data.needsSetup && (

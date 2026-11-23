@@ -29,7 +29,7 @@ export async function POST(request) {
   if (denied) return denied;
   await ensureSchema();
   const b = await request.json();
-  const { chapterId, title, kind = "reading", blobUrl, pageCount, offset, confidence, firstPagesText, printedRange } = b;
+  const { chapterId, title, kind = "reading", blobUrl, pageCount, offset, confidence, firstPagesText, printedRange, canvasFileId } = b;
 
   const { metadata, intext, reference } =
     kind === "slides"
@@ -37,8 +37,8 @@ export async function POST(request) {
       : await detectMetadata({ title, printedRange, firstPagesText });
 
   const rows = await q(
-    `insert into documents (chapter_id, title, kind, blob_url, page_count, page_offset, page_confidence, metadata, intext, reference)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning id`,
+    `insert into documents (chapter_id, title, kind, blob_url, page_count, page_offset, page_confidence, metadata, intext, reference, canvas_file_id)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) returning id`,
     [
       chapterId,
       String(metadata.title || title).replace(/\u0000/g, ""),
@@ -50,6 +50,7 @@ export async function POST(request) {
       JSON.stringify(metadata),
       intext,
       reference,
+      canvasFileId || null,
     ]
   );
   return Response.json({ id: rows[0].id, metadata, intext, reference });

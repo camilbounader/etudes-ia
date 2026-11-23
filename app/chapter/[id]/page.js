@@ -3,13 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { upload } from "@vercel/blob/client";
 import { api } from "@/lib/api";
-import { extractPdf } from "@/lib/pdfClient";
-import { detectPagination } from "@/lib/pagination";
+import { importPdf } from "@/lib/importer";
 
-const KINDS = { reading: "Lecture du corpus", slides: "Diapos du cours", other: "Autre" };
-const BATCH = 12; // pages envoyées par requête
+const KINDS = { reading: "Lecture du corpus", slides: "Diapos du cours", page: "Page Canvas", other: "Autre" };
 
 function pageRange(d) {
   if (d.first_printed && d.last_printed) return `p. ${d.first_printed}–${d.last_printed}`;
@@ -146,64 +143,7 @@ export default function ChapterPage() {
     setBusy(true);
     setLog([]);
     for (const file of files) {
-      let createdId = null;
-      try {
-        say(`${file.name} : envoi du PDF…`);
-        const blob = await upload(file.name, file, {
-          access: "public",
-          handleUploadUrl: "/api/blob-upload",
-          multipart: file.size > 8 * 1024 * 1024,
-        });
-
-        say(`${file.name} : lecture du texte…`);
-        const pages = await extractPdf(file);
-        const pag = kind === "slides" ? { offset: null, confidence: 0, printed: pages.map(() => null) } : detectPagination(pages);
-        const nums = pag.printed.filter(Boolean).map(Number);
-        const printedRange = nums.length ? `${Math.min(...nums)}–${Math.max(...nums)}` : "";
-        const textChars = pages.reduce((n, p) => n + p.text.trim().length, 0);
-        if (textChars < 200) {
-          say(`⚠ ${file.name} : presque aucun texte (PDF scanné ?). Lecture des images prévue à une étape suivante.`);
-        }
-
-        say(`${file.name} : identification de la référence…`);
-        const created = await api("/api/documents", {
-          method: "POST",
-          body: {
-            chapterId: Number(id),
-            title: file.name.replace(/\.pdf$/i, ""),
-            kind,
-            blobUrl: blob.url,
-            pageCount: pages.length,
-            offset: pag.offset,
-            confidence: pag.confidence,
-            printedRange,
-            firstPagesText: pages.slice(0, 3).map((p) => p.text).join("\n\n"),
-          },
-        });
-
-        createdId = created.id;
-        for (let i = 0; i < pages.length; i += BATCH) {
-          say(`${file.name} : indexation des pages ${i + 1} à ${Math.min(i + BATCH, pages.length)} / ${pages.length}`);
-          await api(`/api/documents/${created.id}/pages`, {
-            method: "POST",
-            body: {
-              pages: pages.slice(i, i + BATCH).map((p, j) => ({
-                pdfPage: i + j + 1,
-                printedPage: pag.printed[i + j],
-                text: p.text,
-              })),
-            },
-          });
-        }
-        await api(`/api/documents/${created.id}`, { method: "PATCH", body: { status: "ready" } });
-        say(`✓ ${file.name} : (${created.intext}) ${printedRange ? "p. " + printedRange : "sans numérotation"}`);
-      } catch (e) {
-        say(`✗ ${file.name} : ${e.message}`);
-        if (createdId) {
-          await api(`/api/documents/${createdId}`, { method: "DELETE" }).catch(() => {});
-          say(`  (document incomplet supprimé : réimporte ce fichier)`);
-        }
-      }
+      await importPdf({ source: file, name: file.name, chapterId: id, kind, say });
       await load();
     }
     setBusy(false);
@@ -235,7 +175,7 @@ export default function ChapterPage() {
         <h2 className="font-semibold">Importer des PDF</h2>
         <div className="flex flex-wrap items-center gap-3">
           <select value={kind} onChange={(e) => setKind(e.target.value)} className="border rounded px-2 py-1">
-            {Object.entries(KINDS).map(([k, v]) => (
+            {Object.entries(KINDS).filter(([k]) => k !== "page").map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}
           </select>
