@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { importPdf, importScreens } from "@/lib/importer";
 import Sheets from "@/components/Sheets";
+import Works from "@/components/Works";
 
 const KINDS = { reading: "Lecture du corpus", slides: "Diapos du cours", screens: "Captures d'écran", notes: "Fiche perso", assignment: "Devoir / examen", page: "Page Canvas", web: "Page web", video: "Vidéo", other: "Autre" };
 
@@ -256,6 +257,8 @@ export default function ChapterPage() {
       </section>
 
       <Sheets chapter={chapter} />
+
+      <Works chapter={chapter} />
 
       <section className="space-y-2">
         <h2 className="font-semibold">Documents ({docs.length})</h2>
