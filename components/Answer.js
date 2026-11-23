@@ -2,8 +2,32 @@
 
 // Affiche une réponse ou une fiche : titres, paragraphes, listes, tableaux,
 // encadrés, et références Harvard cliquables à l'endroit exact des citations.
+import { useEffect, useState } from "react";
 import { segmentsToMarked } from "@/lib/marked";
-import { parseBlocks, parseInline } from "@/lib/blocks";
+import { parseBlocks, parseInline, isFigureText, figureSource } from "@/lib/blocks";
+
+// Image de la page du PDF où se trouve la figure
+function FigureImage({ src }) {
+  const [img, setImg] = useState(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    import("@/lib/pdfClient")
+      .then(({ renderPdfPage }) => renderPdfPage(src.url, src.page))
+      .then((r) => alive && setImg(r.dataUrl))
+      .catch(() => alive && setErr(true));
+    return () => {
+      alive = false;
+    };
+  }, [src.url, src.page]);
+  if (err) return null;
+  if (!img) return <p className="text-xs text-slate-400">Chargement de la figure (page {src.page})…</p>;
+  return (
+    <a href={`${src.url}#page=${src.page}`} target="_blank" title="Ouvrir le PDF à cette page">
+      <img src={img} alt={`Page ${src.page} : ${src.label}`} className="max-h-[480px] mx-auto border rounded shadow-sm" />
+    </a>
+  );
+}
 
 function Inline({ text, cites }) {
   return parseInline(text).map((p, i) => {
@@ -72,12 +96,17 @@ export default function Answer({ message }) {
               </table>
             </div>
           );
-        if (b.type === "quote")
+        if (b.type === "quote") {
+          const src = isFigureText(b.text) ? figureSource(b.text, cites) : null;
           return (
-            <blockquote key={i} className="border-l-4 border-amber-300 bg-amber-50 pl-3 py-1">
-              <Inline text={b.text} cites={cites} />
-            </blockquote>
+            <figure key={i} className="space-y-2">
+              {src && <FigureImage src={src} />}
+              <blockquote className="border-l-4 border-amber-300 bg-amber-50 pl-3 py-1">
+                <Inline text={b.text} cites={cites} />
+              </blockquote>
+            </figure>
           );
+        }
         return (
           <p key={i}>
             <Inline text={b.text} cites={cites} />

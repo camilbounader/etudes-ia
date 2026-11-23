@@ -29,7 +29,13 @@ function SheetCard({ chapter, kind }) {
 
   async function download() {
     const { docxBlob } = await import("@/lib/docxExport");
+    const { figureImages } = await import("@/lib/pdfClient");
+    const { segmentsToMarked } = await import("@/lib/marked");
+    const { figureSourcesOf } = await import("@/lib/blocks");
+    const { full, cites } = segmentsToMarked(sheet.citations.segments);
+    const images = await figureImages(figureSourcesOf(full, cites));
     const blob = await docxBlob({
+      images,
       title: `${kind === "fr" ? "Fiche explicative" : "Revision sheet"} — ${chapter.title}`,
       subtitle: `${chapter.course_code || chapter.course_title} · ${chapter.module_title}`,
       segments: sheet.citations.segments,
