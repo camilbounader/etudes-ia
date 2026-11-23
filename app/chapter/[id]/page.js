@@ -6,9 +6,10 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { importPdf } from "@/lib/importer";
 
-const KINDS = { reading: "Lecture du corpus", slides: "Diapos du cours", page: "Page Canvas", other: "Autre" };
+const KINDS = { reading: "Lecture du corpus", slides: "Diapos du cours", page: "Page Canvas", video: "Vidéo", other: "Autre" };
 
 function pageRange(d) {
+  if (d.kind === "video") return d.status === "ready" ? `${d.chunk_count} extraits` : "transcription à coller";
   if (d.first_printed && d.last_printed) return `p. ${d.first_printed}–${d.last_printed}`;
   return "pas de numérotation";
 }
@@ -38,6 +39,20 @@ function DocumentRow({ d, onChange }) {
   }
 
   const lowConfidence = d.kind === "reading" && (d.page_confidence ?? 0) < 0.5;
+  const [transcript, setTranscript] = useState("");
+  const [tBusy, setTBusy] = useState(false);
+  async function sendTranscript() {
+    setTBusy(true);
+    try {
+      const r = await api(`/api/documents/${d.id}/transcript`, { method: "POST", body: { text: transcript } });
+      alert(`Transcription indexée : ${r.chunks} extraits${r.hasTimestamps ? " avec minutage" : " (sans minutage)"}.`);
+      setTranscript("");
+      onChange();
+    } catch (e) {
+      alert(e.message);
+    }
+    setTBusy(false);
+  }
 
   return (
     <li className="border rounded-lg bg-white">
@@ -46,14 +61,30 @@ function DocumentRow({ d, onChange }) {
           <p className="font-medium">{d.title}</p>
           <p className="text-sm text-slate-600">
             ({d.intext}) · {pageRange(d)} · PDF {d.page_count} p. · {d.chunk_count} passages · {KINDS[d.kind] || d.kind}
-            {d.status !== "ready" && <span className="ml-2 text-amber-600">import incomplet</span>}
+            {d.status !== "ready" && d.kind !== "video" && <span className="ml-2 text-amber-600">import incomplet</span>}
             {lowConfidence && <span className="ml-2 text-amber-600">numérotation à vérifier</span>}
           </p>
         </div>
-        <a href={d.blob_url} target="_blank" className="text-sm text-blue-700 hover:underline">PDF</a>
+        <a href={d.blob_url} target="_blank" className="text-sm text-blue-700 hover:underline">
+          {d.kind === "video" ? "Vidéo" : d.kind === "page" ? "Page" : "PDF"}
+        </a>
         <button onClick={toggle} className="text-sm text-slate-600 hover:underline">{open ? "Fermer" : "Vérifier"}</button>
         <button onClick={remove} className="text-sm text-slate-400 hover:text-red-600">Supprimer</button>
       </div>
+      {d.kind === "video" && (
+        <div className="border-t p-3 space-y-2 text-sm">
+          <p className="text-slate-600">
+            {d.status === "ready" ? "Remplacer la transcription : " : "Colle ici la transcription : "}
+            dans Panopto, onglet « Sous-titres », sélectionne tout le texte (Ctrl+A dans la liste) puis copie. Pour TED : « Read transcript ».
+          </p>
+          <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} rows={4}
+            className="w-full border rounded px-2 py-1 font-mono text-xs" placeholder="texte des sous-titres, avec ou sans minutage" />
+          <button onClick={sendTranscript} disabled={tBusy || transcript.trim().length < 50}
+            className="px-3 py-1 rounded bg-slate-900 text-white disabled:opacity-50">
+            {tBusy ? "Indexation…" : "Indexer la transcription"}
+          </button>
+        </div>
+      )}
       {open && detail && (
         <div className="border-t p-3 space-y-3 text-sm">
           <label className="block">
@@ -221,7 +252,7 @@ export default function ChapterPage() {
               <li key={r.id} className="border-l-4 border-blue-200 pl-3">
                 <p className="text-sm font-medium">
                   <a href={`${r.blob_url}#page=${r.pdf_page}`} target="_blank" className="text-blue-700 hover:underline">
-                    ({r.intext}{r.printed_page ? `, p. ${r.printed_page}` : ""})
+                    ({r.intext}{r.printed_page ? (r.kind === "video" ? `, ${r.printed_page}` : `, p. ${r.printed_page}`) : ""})
                   </a>
                   <span className="ml-2 text-xs text-slate-500">
                     {r.chapter_title} · PDF p. {r.pdf_page} · pertinence {Math.round(r.score * 100)} %

@@ -1,7 +1,7 @@
 import { guard } from "@/lib/auth";
 import { ensureSchema } from "@/lib/schema";
 import { q } from "@/lib/db";
-import { canvasGet, listModules, getPage, getFile, fileIdsInHtml, norm } from "@/lib/canvas";
+import { canvasGet, listModules, getPage, getFile, fileIdsInHtml, videosInHtml, norm } from "@/lib/canvas";
 
 export const maxDuration = 120;
 
@@ -44,7 +44,7 @@ export async function GET(request, { params }) {
         let current = null;
         for (const it of (m.items || []).sort((a, b) => a.position - b.position)) {
           if (it.type === "Page") {
-            current = { title: it.title, pageUrl: it.page_url, fileIds: [], links: [] };
+            current = { title: it.title, pageUrl: it.page_url, fileIds: [], links: [], videos: [] };
             mod.chapters.push(current);
           } else if (it.type === "File") {
             (current ? current.fileIds : mod.looseFiles).push(it.content_id);
@@ -61,6 +61,7 @@ export async function GET(request, { params }) {
       const page = await getPage(courseId, ch.pageUrl);
       for (const fid of fileIdsInHtml(page.body)) if (!ch.fileIds.includes(fid)) ch.fileIds.push(fid);
       ch.textLength = String(page.body || "").length;
+      ch.videos = videosInHtml(page.body);
     });
 
     // 3. Détails des fichiers (on ne garde que les PDF)
@@ -81,6 +82,10 @@ export async function GET(request, { params }) {
     );
     const importedPages = new Set(
       (await q(`select canvas_page_url from documents where canvas_page_url is not null`)).map((r) => r.canvas_page_url)
+    );
+
+    const importedVideos = new Set(
+      (await q(`select canvas_page_url from documents where kind = 'video' and canvas_page_url is not null`)).map((r) => r.canvas_page_url)
     );
 
     const fileInfo = (fid) => {
@@ -105,7 +110,8 @@ export async function GET(request, { params }) {
             existingId: oc?.id || null,
             pageImported: importedPages.has(`${courseId}/${c.pageUrl}`),
             files: c.fileIds.map(fileInfo).filter(Boolean),
-            links: c.links,
+            links: c.links.filter((l) => !c.videos.some((v) => l.url && l.url.includes(v.key.split(":")[1]))),
+            videos: c.videos.map((v) => ({ ...v, imported: importedVideos.has(`video:${v.key}`) })),
           };
         }),
         looseFiles: m.looseFiles.map(fileInfo).filter(Boolean),
