@@ -1,12 +1,14 @@
 import { guard } from "@/lib/auth";
 import { q } from "@/lib/db";
+import { ensureSchema } from "@/lib/schema";
 
 // GET : arborescence cours > modules > chapitres
 export async function GET() {
   const denied = await guard();
   if (denied) return denied;
   try {
-    const courses = await q(`select id, code, title from courses order by code nulls last, id`);
+    await ensureSchema();
+    const courses = await q(`select id, code, title, semester from courses order by semester nulls last, code nulls last, id`);
     const modules = await q(`select id, course_id, title, position from modules order by position, id`);
     const chapters = await q(
       `select c.id, c.module_id, c.title, c.position,
@@ -51,6 +53,16 @@ export async function POST(request) {
     return Response.json({ error: "Type inconnu" }, { status: 400 });
   }
   return Response.json({ id: rows[0].id });
+}
+
+// PATCH { id, semester } : semestre d'un cours (1 à 4, ou null)
+export async function PATCH(request) {
+  const denied = await guard();
+  if (denied) return denied;
+  await ensureSchema();
+  const { id, semester } = await request.json();
+  await q(`update courses set semester = $1 where id = $2`, [semester ? Number(semester) : null, Number(id)]);
+  return Response.json({ ok: true });
 }
 
 // DELETE : ?type=course|module|chapter&id=..

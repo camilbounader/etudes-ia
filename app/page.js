@@ -88,7 +88,16 @@ export default function Home() {
         </div>
       )}
 
-      {data.courses.map((c) => (
+      {[1, 2, 3, 4, null].map((sem) => {
+        const list = data.courses.filter((c) => (c.semester ?? null) === sem);
+        if (!list.length) return null;
+        return (
+          <div key={String(sem)} className="space-y-4">
+            <h2 className="text-xl font-semibold text-slate-700 mt-2">
+              {sem ? `Semestre ${sem}` : "Semestre non défini"}
+              {sem === 4 && <span className="ml-2 text-sm font-normal text-slate-500">(mémoire)</span>}
+            </h2>
+      {list.map((c) => (
         <section key={c.id} className="bg-white border rounded-xl p-4">
           <div className="flex items-baseline justify-between">
             <h2 className="text-lg font-semibold">
@@ -96,6 +105,20 @@ export default function Home() {
               {c.title}
             </h2>
             <span className="text-xs">
+              <select
+                value={c.semester ?? ""}
+                onChange={async (e) => {
+                  await api("/api/structure", { method: "PATCH", body: { id: c.id, semester: e.target.value || null } });
+                  load();
+                }}
+                className="border rounded px-1 mr-3"
+                title="Semestre"
+              >
+                <option value="">semestre ?</option>
+                {[1, 2, 3, 4].map((n) => (
+                  <option key={n} value={n}>Semestre {n}</option>
+                ))}
+              </select>
               <Link href={`/scope/course/${c.id}`} className="text-blue-700 hover:underline">aperçu & chats du cours</Link>
               <button onClick={() => remove("course", c.id, c.title)} className="ml-3 text-slate-400 hover:text-red-600">supprimer</button>
             </span>
@@ -131,6 +154,9 @@ export default function Home() {
           </div>
         </section>
       ))}
+          </div>
+        );
+      })}
 
       {!data.needsSetup && (
         <section className="bg-white border rounded-xl p-4">

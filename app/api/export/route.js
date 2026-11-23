@@ -12,7 +12,7 @@ export async function GET(request) {
   await ensureSchema();
   const courseId = Number(new URL(request.url).searchParams.get("courseId")) || null;
 
-  const courses = await q(`select id, code, title from courses ${courseId ? "where id = $1" : ""} order by code nulls last, id`, courseId ? [courseId] : []);
+  const courses = await q(`select id, code, title, semester from courses ${courseId ? "where id = $1" : ""} order by code nulls last, id`, courseId ? [courseId] : []);
   const ids = courses.map((c) => c.id);
   const modules = await q(`select id, course_id, title, position from modules where course_id = any($1::int[]) order by position, id`, [ids]);
   const chapters = await q(`select id, module_id, title, position from chapters where module_id = any($1::int[]) order by position, id`, [modules.map((m) => m.id)]);

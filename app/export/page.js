@@ -51,7 +51,8 @@ export default function ExportPage() {
       let n = 0;
 
       for (const c of data.courses) {
-        const cf = root.folder(safe(`${c.code ? c.code + " - " : ""}${c.title}`));
+        const semFolder = root.folder(c.semester ? `Semestre ${c.semester}` : "Semestre non défini");
+        const cf = semFolder.folder(safe(`${c.code ? c.code + " - " : ""}${c.title}`));
         if (c.overview) cf.file("_Aperçu du cours.md", c.overview);
         for (const m of c.modules) {
           const mf = cf.folder(safe(m.title));
