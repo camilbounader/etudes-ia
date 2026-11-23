@@ -129,6 +129,7 @@ export default function ChapterPage() {
     setBusy(true);
     setLog([]);
     for (const file of files) {
+      let createdId = null;
       try {
         say(`${file.name} : envoi du PDF…`);
         const blob = await upload(file.name, file, {
@@ -163,6 +164,7 @@ export default function ChapterPage() {
           },
         });
 
+        createdId = created.id;
         for (let i = 0; i < pages.length; i += BATCH) {
           say(`${file.name} : indexation des pages ${i + 1} à ${Math.min(i + BATCH, pages.length)} / ${pages.length}`);
           await api(`/api/documents/${created.id}/pages`, {
@@ -180,6 +182,10 @@ export default function ChapterPage() {
         say(`✓ ${file.name} : (${created.intext}) ${printedRange ? "p. " + printedRange : "sans numérotation"}`);
       } catch (e) {
         say(`✗ ${file.name} : ${e.message}`);
+        if (createdId) {
+          await api(`/api/documents/${createdId}`, { method: "DELETE" }).catch(() => {});
+          say(`  (document incomplet supprimé : réimporte ce fichier)`);
+        }
       }
       await load();
     }

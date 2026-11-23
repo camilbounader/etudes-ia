@@ -115,6 +115,20 @@ export default function Home() {
           <AddForm withCode placeholder="Titre du cours" onAdd={(t, code) => add("course", t, null, code)} />
         </section>
       )}
+
+      {!data.needsSetup && (
+        <p className="text-right">
+          <button
+            onClick={async () => {
+              await setup();
+              alert("Base de données à jour.");
+            }}
+            className="text-xs text-slate-500 hover:underline"
+          >
+            Mettre à jour la base
+          </button>
+        </p>
+      )}
     </main>
   );
 }
