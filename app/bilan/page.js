@@ -16,12 +16,49 @@ export default function Bilan() {
   const [busy, setBusy] = useState("");
   const [log, setLog] = useState([]);
 
+  const [batchInfo, setBatchInfo] = useState(null);
+
   async function load() {
     setData(await api("/api/bilan"));
   }
+  async function checkBatches(quiet = false) {
+    try {
+      const r = await api("/api/sheets/batch");
+      setBatchInfo(r);
+      if (r.done) await load();
+    } catch (e) {
+      if (!quiet) say(`✗ ${e.message}`);
+    }
+  }
   useEffect(() => {
     load().catch((e) => setLog([e.message]));
+    checkBatches(true);
+    const t = setInterval(() => checkBatches(true), 60000); // vérifie les lots chaque minute
+    return () => clearInterval(t);
   }, []);
+
+  async function generateMissing() {
+    const todo = data.rows.filter(
+      (r) => !r.batch_pending && (!r.sheet_fr || !r.sheet_en) && r.readings + r.slides + r.canvas_pages + r.web > 0
+    );
+    const count = todo.reduce((n, r) => n + (r.sheet_fr ? 0 : 1) + (r.sheet_en ? 0 : 1), 0);
+    if (!count) return alert("Aucune fiche manquante (ou déjà en cours).");
+    if (!confirm(`${count} fiche(s) à rédiger sur ${todo.length} chapitre(s), en mode lot (−50 %).\nCoût estimé : environ ${(count * 0.12).toFixed(2)} $.\nRésultats en général en moins d'une heure (24 h au maximum). Continuer ?`)) return;
+    setBusy("Envoi des lots…");
+    setLog([]);
+    for (const r of todo) {
+      const kinds = [!r.sheet_fr && "fr", !r.sheet_en && "en"].filter(Boolean);
+      try {
+        const res = await api("/api/sheets/batch", { method: "POST", body: { chapterId: r.chapter_id, kinds } });
+        say(res.skipped ? `– ${r.chapter_title} : ${res.skipped}` : `✓ ${r.chapter_title} : ${kinds.join(" + ").toUpperCase()} envoyée(s)`);
+      } catch (e) {
+        say(`✗ ${r.chapter_title} : ${e.message}`);
+      }
+    }
+    await load();
+    await checkBatches(true);
+    setBusy("");
+  }
 
   const say = (l) => setLog((x) => [...x, l]);
 
@@ -86,6 +123,21 @@ export default function Bilan() {
         pas encore dans l'application.
       </p>
 
+      <div className="bg-white border rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-sm">
+          Fiches : génération en <strong>mode lot</strong> (−50 %), sans rester sur la page.
+          {batchInfo?.pending ? ` ${batchInfo.pending} lot(s) en cours, vérifiés chaque minute.` : ""}
+        </span>
+        <span className="flex gap-2">
+          <button onClick={() => checkBatches()} disabled={!!busy} className="px-3 py-1 rounded bg-slate-200 hover:bg-slate-300 text-sm">
+            Vérifier les lots
+          </button>
+          <button onClick={generateMissing} disabled={!!busy} className="px-3 py-1 rounded bg-slate-900 text-white text-sm disabled:opacity-50">
+            Générer toutes les fiches manquantes
+          </button>
+        </span>
+      </div>
+
       {data.badRefs.length > 0 && (
         <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 flex items-center justify-between gap-4">
           <span>{data.badRefs.length} référence(s) mal reconnue(s) (nom de fichier au lieu de « Auteur, année »).</span>
@@ -147,8 +199,8 @@ export default function Bilan() {
                         {r.videos ? <Dot ok={r.videos_ready === r.videos} warn title="transcrites / total">{r.videos_ready}/{r.videos}</Dot> : <span className="text-xs text-slate-400">—</span>}
                       </td>
                       <td><Dot ok={r.canvas_pages > 0} warn>{r.canvas_pages ? "✓" : "—"}</Dot></td>
-                      <td><Dot ok={!!r.sheet_fr} warn>{r.sheet_fr ? new Date(r.sheet_fr).toLocaleDateString("fr-FR") : "—"}</Dot></td>
-                      <td><Dot ok={!!r.sheet_en} warn>{r.sheet_en ? new Date(r.sheet_en).toLocaleDateString("fr-FR") : "—"}</Dot></td>
+                      <td><Dot ok={!!r.sheet_fr} warn>{r.sheet_fr ? new Date(r.sheet_fr).toLocaleDateString("fr-FR") : r.batch_pending ? "en lot…" : "—"}</Dot></td>
+                      <td><Dot ok={!!r.sheet_en} warn>{r.sheet_en ? new Date(r.sheet_en).toLocaleDateString("fr-FR") : r.batch_pending ? "en lot…" : "—"}</Dot></td>
                       <td className="text-xs text-slate-500">{r.notes || "—"}</td>
                       <td className="text-xs">
                         {[...todo, ...miss.map((x) => `manque ${x}`)].map((t, i) => (

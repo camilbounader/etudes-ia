@@ -30,7 +30,8 @@ export async function GET() {
             count(d.*) filter (where d.status <> 'ready' and d.kind <> 'video')::int as incomplete,
             count(d.*) filter (where ${BAD_REF_SQL})::int as bad_refs,
             (select max(created_at) from sheets s where s.chapter_id = ch.id and s.kind = 'fr') as sheet_fr,
-            (select max(created_at) from sheets s where s.chapter_id = ch.id and s.kind = 'en') as sheet_en
+            (select max(created_at) from sheets s where s.chapter_id = ch.id and s.kind = 'en') as sheet_en,
+            exists(select 1 from sheet_jobs j where j.chapter_id = ch.id and j.status = 'pending') as batch_pending
        from courses c
        join modules m on m.course_id = c.id
        join chapters ch on ch.module_id = m.id

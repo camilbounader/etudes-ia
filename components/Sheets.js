@@ -9,21 +9,42 @@ const LABELS = { fr: "Fiche explicative (FR)", en: "Revision sheet (EN)" };
 function SheetCard({ chapter, kind }) {
   const [sheet, setSheet] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [pendingBatch, setPendingBatch] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    api(`/api/sheets?chapterId=${chapter.id}&kind=${kind}`).then((d) => setSheet(d.sheet)).catch(() => {});
+    api(`/api/sheets?chapterId=${chapter.id}&kind=${kind}`)
+      .then((d) => {
+        setSheet(d.sheet);
+        setPendingBatch(d.pendingBatch);
+      })
+      .catch(() => {});
   }, [chapter.id, kind]);
 
+  // rédaction partie par partie, puis enregistrement de la fiche assemblée
   async function generate() {
     setBusy(true);
     try {
-      const d = await api("/api/sheets", { method: "POST", body: { chapterId: chapter.id, kind } });
+      const segments = [];
+      let truncated = false;
+      let parts = 3;
+      let targetWords = null;
+      for (let part = 0; part < parts; part++) {
+        setProgress(`partie ${part + 1}/${parts}…`);
+        const r = await api("/api/sheets", { method: "POST", body: { chapterId: chapter.id, kind, part } });
+        parts = r.parts;
+        targetWords = r.targetWords;
+        if (r.stop === "max_tokens") truncated = true;
+        segments.push(...r.segments, { text: "\n\n", cites: [] });
+      }
+      const d = await api("/api/sheets", { method: "PUT", body: { chapterId: chapter.id, kind, segments, targetWords, truncated } });
       setSheet(d.sheet);
       setOpen(true);
     } catch (e) {
       alert(e.message);
     }
+    setProgress("");
     setBusy(false);
   }
 
@@ -61,7 +82,7 @@ function SheetCard({ chapter, kind }) {
             </>
           )}
           <button onClick={generate} disabled={busy} className="px-2 py-1 rounded bg-slate-900 text-white disabled:opacity-50">
-            {busy ? "Rédaction (1 à 3 min)…" : sheet ? "Regénérer" : "Générer"}
+            {busy ? `Rédaction ${progress}` : sheet ? "Regénérer" : "Générer"}
           </button>
         </span>
       </div>
@@ -69,8 +90,10 @@ function SheetCard({ chapter, kind }) {
         <p className="text-xs text-slate-500 mt-1">
           {sheet.words} mots{target ? ` (cible ${target})` : ""} · {new Date(sheet.created_at).toLocaleString("fr-FR")}
           {target && sheet.words < target * 0.85 && <span className="text-amber-600"> · plus courte que prévu</span>}
+          {sheet.citations?.truncated && <span className="text-red-600"> · une partie a été coupée : regénère</span>}
         </p>
       )}
+      {pendingBatch && <p className="text-xs text-blue-700 mt-1">Une version est en cours de rédaction en mode lot (Bilan → Vérifier les lots).</p>}
       {sheet && open && (
         <div className="mt-3 border-t pt-3">
           <Answer message={sheet} />
