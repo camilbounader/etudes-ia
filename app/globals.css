@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+/* Cartes légèrement transparentes sur la photo de fond */
+.bg-white {
+  background-color: rgb(255 255 255 / 0.92);
+}

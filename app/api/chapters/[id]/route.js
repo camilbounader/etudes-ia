@@ -1,7 +1,8 @@
 import { guard } from "@/lib/auth";
 import { q } from "@/lib/db";
 
-// GET : un chapitre avec son module et son cours (fil d'Ariane, périmètres)
+// GET : un chapitre, son module et son cours, + chapitres précédent / suivant
+// (dans l'ordre du cours, en passant d'un module à l'autre)
 export async function GET(request, { params }) {
   const denied = await guard();
   if (denied) return denied;
@@ -14,5 +15,14 @@ export async function GET(request, { params }) {
     [Number(id)]
   );
   if (!rows.length) return Response.json({ error: "Introuvable" }, { status: 404 });
-  return Response.json({ chapter: rows[0] });
+  const chapter = rows[0];
+  const order = await q(
+    `select ch.id, ch.title, m.title as module_title
+       from chapters ch join modules m on m.id = ch.module_id
+      where m.course_id = $1
+      order by m.position, m.id, ch.position, ch.id`,
+    [chapter.course_id]
+  );
+  const i = order.findIndex((x) => x.id === chapter.id);
+  return Response.json({ chapter: { ...chapter, prev: order[i - 1] || null, next: order[i + 1] || null } });
 }

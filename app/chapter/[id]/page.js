@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { importPdf, importScreens } from "@/lib/importer";
 import Sheets from "@/components/Sheets";
 import Works from "@/components/Works";
+import ChapterNav from "@/components/ChapterNav";
 
 const KINDS = { reading: "Lecture du corpus", slides: "Diapos du cours", screens: "Captures d'écran", notes: "Fiche perso", assignment: "Devoir / examen", page: "Page Canvas", web: "Page web", video: "Vidéo", other: "Autre" };
 
@@ -224,6 +225,7 @@ export default function ChapterPage() {
       <nav className="text-sm text-slate-500">
         <Link href="/" className="hover:underline">Accueil</Link> / {chapter.course_code || chapter.course_title} / {chapter.module_title}
       </nav>
+      <ChapterNav chapter={chapter} />
       <div className="flex items-baseline justify-between gap-4">
         <h1 className="text-2xl font-semibold">{chapter.title}</h1>
         <Link href={`/scope/chapter/${chapter.id}`} className="px-4 py-2 rounded bg-slate-900 text-white whitespace-nowrap">
@@ -300,6 +302,7 @@ export default function ChapterPage() {
           </ol>
         )}
       </section>
+      <ChapterNav chapter={chapter} />
     </main>
   );
 }
