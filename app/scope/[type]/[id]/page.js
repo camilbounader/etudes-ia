@@ -74,9 +74,14 @@ export default function ScopePage() {
       </nav>
       <div className="flex items-baseline justify-between gap-4">
         <h1 className="text-2xl font-semibold">{data.scope.label}</h1>
-        <button onClick={create} className="px-4 py-2 rounded bg-slate-900 text-white whitespace-nowrap">
-          Nouvelle conversation
-        </button>
+        <span className="flex gap-2">
+          <Link href={`/livrables/${type}/${id}`} className="px-4 py-2 rounded bg-slate-200 hover:bg-slate-300 whitespace-nowrap">
+            Carte, auteurs, citations
+          </Link>
+          <button onClick={create} className="px-4 py-2 rounded bg-slate-900 text-white whitespace-nowrap">
+            Nouvelle conversation
+          </button>
+        </span>
       </div>
       <section className="bg-white border rounded-xl p-4">
         <div className="flex items-baseline justify-between gap-4">

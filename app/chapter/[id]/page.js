@@ -228,9 +228,14 @@ export default function ChapterPage() {
       <ChapterNav chapter={chapter} />
       <div className="flex items-baseline justify-between gap-4">
         <h1 className="text-2xl font-semibold">{chapter.title}</h1>
-        <Link href={`/scope/chapter/${chapter.id}`} className="px-4 py-2 rounded bg-slate-900 text-white whitespace-nowrap">
-          Aperçu et chats
-        </Link>
+        <span className="flex gap-2">
+          <Link href={`/livrables/chapter/${chapter.id}`} className="px-4 py-2 rounded bg-slate-200 hover:bg-slate-300 whitespace-nowrap">
+            Carte mentale, auteurs, citations
+          </Link>
+          <Link href={`/scope/chapter/${chapter.id}`} className="px-4 py-2 rounded bg-slate-900 text-white whitespace-nowrap">
+            Aperçu et chats
+          </Link>
+        </span>
       </div>
 
       <section className="bg-white border rounded-xl p-4 space-y-3">

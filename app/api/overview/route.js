@@ -58,11 +58,11 @@ export async function POST(request) {
       return Response.json({ error: "Aucun document importé dans ce périmètre : importe d'abord des lectures." }, { status: 400 });
     }
 
-    const { blocks } = await callClaudeBlocks({
+    const { blocks, stop } = await callClaudeBlocks({
       feature: "aperçu",
       model: MODELS.main,
       system: SYSTEM,
-      max_tokens: 2000,
+      max_tokens: 5000,
       messages: [
         {
           role: "user",
@@ -77,6 +77,9 @@ export async function POST(request) {
       ],
     });
     const { segments, plain } = renderAnswer(blocks, passages);
+    if (stop === "max_tokens") {
+      return Response.json({ error: "L'aperçu a été coupé avant la fin. Clique de nouveau sur « Regénérer »." }, { status: 500 });
+    }
     const r = await q(
       `insert into overviews (scope_type, scope_id, content, citations) values ($1, $2, $3, $4) returning id, created_at`,
       [scopeType, id, plain, JSON.stringify({ segments })]

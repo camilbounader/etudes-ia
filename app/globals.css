@@ -58,3 +58,10 @@ html.dark .border-amber-300, html.dark .border-amber-500 { border-color: rgb(180
 html.dark .border-blue-200 { border-color: rgb(59 130 246 / 0.4); }
 html.dark input, html.dark textarea, html.dark select { background-color: rgb(var(--veil) / 0.6); color: rgb(var(--ink)); }
 html.dark img.invert-dark { filter: invert(0.9) hue-rotate(180deg); }
+
+/* Impression / PDF : sans menu, boutons ni photo de fond */
+@media print {
+  header, .no-print, [aria-hidden="true"] { display: none !important; }
+  .bg-white { background: white !important; }
+  html.dark body { color: black; }
+}
