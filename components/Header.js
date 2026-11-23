@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { THEMES, applyTheme } from "@/lib/theme";
 
 const LINKS = [
   ["/", "Accueil"],
@@ -16,6 +18,23 @@ const LINKS = [
 
 export default function Header() {
   const path = usePathname();
+  const [theme, setTheme] = useState("light");
+  useEffect(() => {
+    let c = "light";
+    try { c = localStorage.getItem("theme") || "light"; } catch {}
+    setTheme(c);
+    applyTheme(c);
+    // en mode auto, bascule toute seule à 20 h et 7 h
+    const t = setInterval(() => { try { applyTheme(localStorage.getItem("theme") || "light"); } catch {} }, 60000);
+    return () => clearInterval(t);
+  }, []);
+  function nextTheme() {
+    const i = THEMES.findIndex(([k]) => k === theme);
+    const c = THEMES[(i + 1) % THEMES.length][0];
+    setTheme(c);
+    try { localStorage.setItem("theme", c); } catch {}
+    applyTheme(c);
+  }
   if (path === "/login") return null;
   return (
     <header className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b">
@@ -35,6 +54,10 @@ export default function Header() {
             );
           })}
         </nav>
+        <button onClick={nextTheme} title="Changer l'affichage (clair, sombre, nuit, auto 20 h–7 h)"
+          className="ml-auto shrink-0 text-sm px-2 py-1 rounded text-slate-700 hover:bg-slate-100">
+          {THEMES.find(([k]) => k === theme)?.[1] || "☀️ Clair"}
+        </button>
       </div>
     </header>
   );

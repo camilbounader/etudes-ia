@@ -4,3 +4,57 @@
 .bg-white {
   background-color: rgb(255 255 255 / 0.92);
 }
+
+/* ---------- Thèmes : sombre (.dark) et nuit (.dark.night, tons chauds) ----------
+   Règles hors « layer » : elles passent devant les classes Tailwind. */
+:root {
+  --veil: 248 250 252;
+}
+html.dark {
+  color-scheme: dark;
+  --veil: 15 23 42;
+  --card: 30 41 59;
+  --ink: 226 232 240;
+  --muted: 148 163 184;
+  --line: 51 65 85;
+  --soft: 51 65 85;
+  --softer: 71 85 105;
+  --link: 125 179 255;
+}
+html.dark.night {
+  --veil: 20 16 12;
+  --card: 38 31 24;
+  --ink: 236 222 200;
+  --muted: 176 158 132;
+  --line: 66 54 42;
+  --soft: 58 47 36;
+  --softer: 78 64 50;
+  --link: 232 180 110;
+}
+html.dark body { color: rgb(var(--ink)); }
+html.dark *, html.dark ::before, html.dark ::after { border-color: rgb(var(--line)); }
+html.dark .text-slate-900, html.dark .text-slate-800, html.dark .text-slate-700 { color: rgb(var(--ink)); }
+html.dark .text-slate-600, html.dark .text-slate-500 { color: rgb(var(--muted)); }
+html.dark .text-slate-400 { color: rgb(var(--muted) / 0.75); }
+html.dark .bg-white { background-color: rgb(var(--card) / 0.94); }
+html.dark .bg-white\/80, html.dark .bg-white\/90 { background-color: rgb(var(--card) / 0.85); }
+html.dark .bg-slate-50 { background-color: rgb(var(--soft) / 0.5); }
+html.dark .bg-slate-100 { background-color: rgb(var(--soft)); }
+html.dark .bg-slate-200, html.dark .bg-slate-300 { background-color: rgb(var(--softer)); }
+html.dark .hover\:bg-slate-50:hover, html.dark .hover\:bg-slate-100:hover { background-color: rgb(var(--soft)); }
+html.dark .hover\:bg-slate-200:hover, html.dark .hover\:bg-slate-300:hover { background-color: rgb(var(--softer)); }
+html.dark .bg-slate-900 { background-color: rgb(var(--link) / 0.25); color: rgb(var(--ink)); }
+html.dark .bg-\[\#003349\] { background-color: #1e5a78; }
+html.dark .text-\[\#003349\] { color: rgb(var(--ink)); }
+html.dark .text-blue-700 { color: rgb(var(--link)); }
+html.dark .text-red-600, html.dark .text-red-700 { color: #f87171; }
+html.dark .text-green-700, html.dark .text-green-800 { color: #4ade80; }
+html.dark .text-amber-600, html.dark .text-amber-700, html.dark .text-amber-800 { color: #fbbf24; }
+html.dark .bg-amber-50, html.dark .bg-amber-100 { background-color: rgb(120 53 15 / 0.35); }
+html.dark .bg-blue-50 { background-color: rgb(30 58 138 / 0.35); }
+html.dark .bg-green-100 { background-color: rgb(20 83 45 / 0.45); }
+html.dark .bg-red-100 { background-color: rgb(127 29 29 / 0.45); }
+html.dark .border-amber-300, html.dark .border-amber-500 { border-color: rgb(180 83 9 / 0.7); }
+html.dark .border-blue-200 { border-color: rgb(59 130 246 / 0.4); }
+html.dark input, html.dark textarea, html.dark select { background-color: rgb(var(--veil) / 0.6); color: rgb(var(--ink)); }
+html.dark img.invert-dark { filter: invert(0.9) hue-rotate(180deg); }

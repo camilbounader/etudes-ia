@@ -1,6 +1,7 @@
 import "./globals.css";
 import Background from "@/components/Background";
 import Header from "@/components/Header";
+import { THEME_SCRIPT } from "@/lib/theme";
 
 export const metadata = {
   title: "Études IA",
@@ -10,7 +11,11 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
+      <head>
+        {/* applique le thème avant l'affichage (pas d'éclair blanc le soir) */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="text-slate-900 antialiased min-h-screen">
         <Background />
         <Header />

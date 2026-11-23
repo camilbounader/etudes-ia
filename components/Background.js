@@ -55,7 +55,7 @@ export default function Background() {
     <div className="fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
       {prev !== null && list[prev] && layer(list[prev], false, `p${prev}`)}
       {list[idx] && layer(list[idx], true, `c${idx}`)}
-      <div className="absolute inset-0" style={{ background: `rgba(248, 250, 252, ${cfg.opacity})` }} />
+      <div className="absolute inset-0" style={{ background: `rgb(var(--veil) / ${cfg.opacity})` }} />
     </div>
   );
 }
