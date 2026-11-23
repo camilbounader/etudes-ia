@@ -59,6 +59,7 @@ export async function POST(request) {
     }
 
     const { blocks } = await callClaudeBlocks({
+      feature: "aperçu",
       model: MODELS.main,
       system: SYSTEM,
       max_tokens: 2000,

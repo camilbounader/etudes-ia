@@ -3,6 +3,7 @@ import { ensureSchema } from "@/lib/schema";
 import { q } from "@/lib/db";
 import { createBatch, getBatch, batchResults } from "@/lib/anthropic";
 import { renderAnswer } from "@/lib/chat";
+import { logClaudeUsage } from "@/lib/usage";
 import { segmentsToMarked, countWords } from "@/lib/marked";
 import { PARTS, chapterPassages, targetWordsFor, sheetRequest } from "@/lib/sheetGen";
 
@@ -64,6 +65,7 @@ export async function GET() {
             break;
           }
           if (r.message.stop_reason === "max_tokens") truncated = true;
+          await logClaudeUsage(r.message.model, r.message.usage, `fiche ${kind} (lot)`, true);
           const rendered = renderAnswer(r.message.content || [], job.passages);
           segments.push(...rendered.segments, { text: "\n\n", cites: [] });
         }

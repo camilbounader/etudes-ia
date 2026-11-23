@@ -32,6 +32,7 @@ function AddForm({ placeholder, onAdd, withCode = false }) {
 export default function Home() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const [alerts, setAlerts] = useState([]);
 
   async function load() {
     try {
@@ -42,6 +43,18 @@ export default function Home() {
   }
   useEffect(() => {
     load();
+    // alerte budget (80 %)
+    api("/api/usage")
+      .then((u) => {
+        const out = [];
+        for (const p of ["anthropic", "gemini"]) {
+          const spent = u.month.find((m) => m.provider === p)?.cost || 0;
+          const budget = u.budgets[p];
+          if (budget && spent >= budget * 0.8) out.push(`${p === "anthropic" ? "Claude" : "Gemini"} : ${spent.toFixed(2)} $ sur ${budget} $ ce mois-ci`);
+        }
+        setAlerts(out);
+      })
+      .catch(() => {});
   }, []);
 
   async function add(type, title, parentId, code) {
@@ -75,6 +88,9 @@ export default function Home() {
           <Link href="/bilan" className="px-4 py-2 rounded bg-white border whitespace-nowrap hover:bg-slate-100">
             Bilan
           </Link>
+          <Link href="/couts" className="px-4 py-2 rounded bg-white border whitespace-nowrap hover:bg-slate-100">
+            Coûts
+          </Link>
           <Link href="/export" className="px-4 py-2 rounded bg-white border whitespace-nowrap hover:bg-slate-100">
             Télécharger
           </Link>
@@ -83,6 +99,12 @@ export default function Home() {
           </Link>
         </span>
       </div>
+
+      {alerts.length > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm">
+          Budget presque atteint : {alerts.join(" · ")}. <Link href="/couts" className="text-blue-700 underline">Voir les coûts et recharger</Link>
+        </div>
+      )}
 
       {data.needsSetup && (
         <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">

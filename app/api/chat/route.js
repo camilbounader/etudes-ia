@@ -52,6 +52,7 @@ export async function POST(request) {
     ];
 
     const { blocks, usage } = await callClaudeBlocks({
+      feature: "chat",
       model: MODELS.main,
       system: SYSTEM_PROMPT(scope?.label || "inconnu"),
       messages,
@@ -70,6 +71,7 @@ export async function POST(request) {
     if (!history.length && (!conv.title || conv.title === "Nouvelle conversation")) {
       try {
         const r = await callClaude({
+          feature: "titre de conversation",
           model: MODELS.fast,
           max_tokens: 40,
           system: "Donne un titre de 3 à 7 mots, en français, à cette conversation d'étude. Réponds uniquement par le titre, sans guillemets.",

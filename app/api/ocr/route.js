@@ -1,4 +1,6 @@
 import { guard } from "@/lib/auth";
+import { geminiError } from "@/lib/apiErrors";
+import { logUsage } from "@/lib/usage";
 
 export const maxDuration = 120;
 
@@ -30,7 +32,14 @@ export async function POST(request) {
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error("Gemini (image) : " + JSON.stringify(data.error || data).slice(0, 300));
+    if (!res.ok) throw new Error(geminiError(res.status, data));
+    await logUsage({
+      provider: "gemini",
+      model,
+      feature: "lecture de captures",
+      input: data.usageMetadata?.promptTokenCount || 0,
+      output: data.usageMetadata?.candidatesTokenCount || 0,
+    });
     const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("").trim();
     return Response.json({ text });
   } catch (err) {

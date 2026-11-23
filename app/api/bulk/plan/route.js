@@ -107,6 +107,7 @@ export async function POST(request) {
           .join("\n\n");
         try {
           const { text } = await callClaude({
+            feature: "tri import en vrac",
             model: MODELS.fast,
             max_tokens: 4000,
             system: PROMPT,

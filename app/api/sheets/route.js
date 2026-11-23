@@ -37,7 +37,7 @@ export async function POST(request) {
     if (!passages.length) return Response.json({ error: "Aucun document dans ce chapitre : importe d'abord les lectures." }, { status: 400 });
     const targetWords = targetWordsFor(kind, volume);
     const params = await sheetRequest({ ch, passages, kind, part, targetWords });
-    const { blocks, usage, stop } = await callClaudeParams(params);
+    const { blocks, usage, stop } = await callClaudeParams({ ...params, feature: `fiche ${kind}` });
     const { segments } = renderAnswer(blocks, passages);
     return Response.json({ segments, usage, stop, targetWords, parts: PARTS[kind].length });
   } catch (err) {

@@ -92,6 +92,7 @@ export async function POST(request, { params }) {
       userText += `\n\nRÉPONSE DE CAMIL :\n${work.answer}\n\nVÉRIFICATIONS AUTOMATIQUES :\n${checks.map((c) => `${c.ok ? "OK" : "À CORRIGER"} : ${c.label}`).join("\n")}`;
     }
     const { blocks, usage } = await callClaudeBlocks({
+      feature: `mes travaux (${mode})`,
       model: p.model,
       max_tokens: p.max_tokens,
       system: p.system,
