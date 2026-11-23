@@ -39,6 +39,7 @@ export default function CanvasImport() {
           s[`page:${ch.pageUrl}`] = !ch.pageImported;
           for (const f of ch.files) s[`file:${f.id}`] = !f.imported;
           for (const v of ch.videos || []) s[`video:${v.key}`] = !v.imported;
+          for (const l of ch.webLinks || []) s[`web:${l.url}`] = !l.imported;
         }
         for (const f of m.looseFiles) s[`file:${f.id}`] = !f.imported;
       }
@@ -73,7 +74,7 @@ export default function CanvasImport() {
 
       for (const m of plan.modules) {
         const groups = [
-          ...m.chapters.map((c) => ({ key: c.pageUrl, title: c.title, pageUrl: c.pageUrl, files: c.files, videos: c.videos || [] })),
+          ...m.chapters.map((c) => ({ key: c.pageUrl, title: c.title, pageUrl: c.pageUrl, files: c.files, videos: c.videos || [], webLinks: c.webLinks || [] })),
           ...(m.looseFiles.length ? [{ key: `module-${m.canvasId}-files`, title: "Documents du module", files: m.looseFiles }] : []),
         ];
         for (const g of groups) {
@@ -93,10 +94,34 @@ export default function CanvasImport() {
           for (const v of g.videos || []) {
             if (!sel[`video:${v.key}`]) continue;
             try {
-              await api("/api/canvas/video", { method: "POST", body: { chapterId, video: v, courseCode: plan.course.code } });
-              say(`✓ Vidéo « ${v.title} » ajoutée (transcription à coller dans le chapitre)`);
+              const r = await api("/api/canvas/video", { method: "POST", body: { chapterId, video: v, courseCode: plan.course.code } });
+              if (v.kind === "youtube") {
+                say(`Vidéo « ${v.title} » : transcription automatique par Gemini (1 à 3 min)…`);
+                try {
+                  const t = await api(`/api/documents/${r.id}/auto-transcript`, { method: "POST" });
+                  say(`✓ Vidéo « ${v.title} » transcrite (${t.chunks} extraits)`);
+                } catch (e) {
+                  say(`⚠ Vidéo « ${v.title} » ajoutée, transcription automatique échouée : ${e.message}`);
+                }
+              } else {
+                say(`✓ Vidéo « ${v.title} » ajoutée (transcription ou captures à ajouter dans le chapitre)`);
+              }
             } catch (e) {
               say(`✗ Vidéo « ${v.title} » : ${e.message}`);
+            }
+          }
+          for (const l of g.webLinks || []) {
+            if (!sel[`web:${l.url}`]) continue;
+            say(`Lien « ${l.title} » : lecture…`);
+            try {
+              const r = await api("/api/canvas/web", { method: "POST", body: { chapterId, url: l.url, title: l.title } });
+              if (r.skipped) say(`  ignoré : ${r.skipped}`);
+              else if (r.pdf) {
+                const res = await fetch(r.blobUrl);
+                await importPdf({ source: await res.blob(), name: r.name, chapterId, kind: "reading", blobUrl: r.blobUrl, say });
+              } else say(`✓ Page web « ${l.title} » (${r.intext}, ${r.chunks} passages)`);
+            } catch (e) {
+              say(`✗ Lien « ${l.title} » : ${e.message}`);
             }
           }
           for (const f of g.files) {
@@ -187,6 +212,15 @@ export default function CanvasImport() {
                             <input type="checkbox" checked={!!sel[`video:${v.key}`]} onChange={() => toggle(`video:${v.key}`)} />
                             <span>🎬 {v.title}</span>
                             <span className="text-xs text-slate-500">{v.kind} {v.imported && "✓ déjà ajoutée"}</span>
+                          </label>
+                        </li>
+                      ))}
+                      {(c.webLinks || []).map((l) => (
+                        <li key={l.url}>
+                          <label className="flex gap-2 items-baseline text-sm">
+                            <input type="checkbox" checked={!!sel[`web:${l.url}`]} onChange={() => toggle(`web:${l.url}`)} />
+                            <span>🔗 {l.title}</span>
+                            <span className="text-xs text-slate-500 break-all">{l.url.replace(/^https?:\/\//, "").slice(0, 60)} {l.imported && "✓ déjà importé"}</span>
                           </label>
                         </li>
                       ))}

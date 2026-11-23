@@ -1,7 +1,7 @@
 import { guard } from "@/lib/auth";
 import { ensureSchema } from "@/lib/schema";
 import { q } from "@/lib/db";
-import { canvasGet, listModules, getPage, getFile, fileIdsInHtml, videosInHtml, canvasPageLink, norm } from "@/lib/canvas";
+import { canvasGet, listModules, getPage, getFile, fileIdsInHtml, videosInHtml, webLinksInHtml, canvasPageLink, norm } from "@/lib/canvas";
 
 export const maxDuration = 120;
 
@@ -61,6 +61,7 @@ export async function GET(request, { params }) {
       const page = await getPage(courseId, ch.pageUrl);
       for (const fid of fileIdsInHtml(page.body)) if (!ch.fileIds.includes(fid)) ch.fileIds.push(fid);
       ch.textLength = String(page.body || "").length;
+      ch.webLinks = webLinksInHtml(page.body);
       ch.videos = videosInHtml(page.body).map((v) => ({ ...v, url: v.url || canvasPageLink(courseId, ch.pageUrl) }));
     });
 
@@ -88,6 +89,10 @@ export async function GET(request, { params }) {
       (await q(`select canvas_page_url from documents where kind = 'video' and canvas_page_url is not null`)).map((r) => r.canvas_page_url)
     );
 
+    const importedWeb = new Set(
+      (await q(`select canvas_page_url from documents where canvas_page_url like 'web:%'`)).map((r) => r.canvas_page_url.slice(4))
+    );
+
     const fileInfo = (fid) => {
       const f = meta.get(fid);
       if (!f || f.error || !isPdf(f)) return null;
@@ -112,6 +117,7 @@ export async function GET(request, { params }) {
             files: c.fileIds.map(fileInfo).filter(Boolean),
             links: c.links.filter((l) => !c.videos.some((v) => l.url && l.url.includes(v.key.split(":")[1]))),
             videos: c.videos.map((v) => ({ ...v, imported: importedVideos.has(`video:${v.key}`) })),
+            webLinks: (c.webLinks || []).map((l) => ({ ...l, imported: importedWeb.has(l.url) })),
           };
         }),
         looseFiles: m.looseFiles.map(fileInfo).filter(Boolean),
