@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import Answer from "@/components/Answer";
+import MicButton from "@/components/MicButton";
 import { runChecks } from "@/lib/checks";
 import { segmentsToMarked } from "@/lib/marked";
 
@@ -40,6 +41,7 @@ function WorkCard({ work, onChange, onDelete }) {
   const [busy, setBusy] = useState("");
   const [answer, setAnswer] = useState(work.answer || "");
   const [saved, setSaved] = useState(true);
+  const dictBase = useRef("");
 
   async function ai(mode) {
     if (mode === "critique" && !saved) await save();
@@ -105,7 +107,18 @@ function WorkCard({ work, onChange, onDelete }) {
       )}
 
       <div className="border-t pt-2">
-        <label className="text-sm font-medium">Ma réponse</label>
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium">Ma réponse</label>
+          <MicButton
+            lang="en-GB"
+            className="py-0.5 text-sm"
+            onStart={() => (dictBase.current = answer ? answer.trimEnd() + " " : "")}
+            onText={(t) => {
+              setAnswer(dictBase.current + t);
+              setSaved(false);
+            }}
+          />
+        </div>
         <textarea
           value={answer}
           onChange={(e) => {

@@ -13,7 +13,7 @@ export async function POST(request) {
   const denied = await guard();
   if (denied) return denied;
   await ensureSchema();
-  const { conversationId, message } = await request.json();
+  const { conversationId, message, oral } = await request.json();
   if (!message?.trim()) return Response.json({ error: "Message vide" }, { status: 400 });
 
   try {
@@ -54,7 +54,11 @@ export async function POST(request) {
     const { blocks, usage } = await callClaudeBlocks({
       feature: "chat",
       model: MODELS.main,
-      system: SYSTEM_PROMPT(scope?.label || "inconnu"),
+      system:
+        SYSTEM_PROMPT(scope?.label || "inconnu") +
+        (oral
+          ? "\n\nMODE ORAL : la réponse sera lue à voix haute. Réponds en 150 mots maximum, phrases simples, sans titres, listes ni tableaux. Termine par une question courte pour poursuivre l'échange."
+          : ""),
       messages,
       max_tokens: 3000,
     });
