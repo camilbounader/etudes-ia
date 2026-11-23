@@ -1,7 +1,7 @@
 import { guard } from "@/lib/auth";
 import { ensureSchema } from "@/lib/schema";
 import { q } from "@/lib/db";
-import { canvasGet, listModules, getPage, getFile, fileIdsInHtml, videosInHtml, norm } from "@/lib/canvas";
+import { canvasGet, listModules, getPage, getFile, fileIdsInHtml, videosInHtml, canvasPageLink, norm } from "@/lib/canvas";
 
 export const maxDuration = 120;
 
@@ -61,7 +61,7 @@ export async function GET(request, { params }) {
       const page = await getPage(courseId, ch.pageUrl);
       for (const fid of fileIdsInHtml(page.body)) if (!ch.fileIds.includes(fid)) ch.fileIds.push(fid);
       ch.textLength = String(page.body || "").length;
-      ch.videos = videosInHtml(page.body);
+      ch.videos = videosInHtml(page.body).map((v) => ({ ...v, url: v.url || canvasPageLink(courseId, ch.pageUrl) }));
     });
 
     // 3. Détails des fichiers (on ne garde que les PDF)

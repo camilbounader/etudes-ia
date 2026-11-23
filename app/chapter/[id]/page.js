@@ -73,10 +73,35 @@ function DocumentRow({ d, onChange }) {
       </div>
       {d.kind === "video" && (
         <div className="border-t p-3 space-y-2 text-sm">
-          <p className="text-slate-600">
-            {d.status === "ready" ? "Remplacer la transcription : " : "Colle ici la transcription : "}
-            dans Panopto, onglet « Sous-titres », sélectionne tout le texte (Ctrl+A dans la liste) puis copie. Pour TED : « Read transcript ».
-          </p>
+          {/youtube\.com|youtu\.be/.test(d.blob_url || "") && (
+            <button
+              onClick={async () => {
+                setTBusy(true);
+                try {
+                  const r = await api(`/api/documents/${d.id}/auto-transcript`, { method: "POST" });
+                  alert(`Vidéo transcrite par Gemini : ${r.chunks} extraits avec minutage.`);
+                  onChange();
+                } catch (e) {
+                  alert(e.message);
+                }
+                setTBusy(false);
+              }}
+              disabled={tBusy}
+              className="px-3 py-1 rounded bg-blue-700 text-white disabled:opacity-50"
+            >
+              {tBusy ? "Transcription en cours (1 à 3 min)…" : d.status === "ready" ? "Retranscrire automatiquement" : "Transcrire automatiquement (YouTube)"}
+            </button>
+          )}
+          <details className="text-slate-600">
+            <summary className="cursor-pointer">
+              {d.status === "ready" ? "Remplacer la transcription à la main" : "Ou coller la transcription à la main"}
+            </summary>
+            <ul className="list-disc pl-5 mt-1 space-y-1">
+              <li>YouTube : sous la vidéo, ouvre la description (« …plus »), puis « Afficher la transcription ». Sélectionne le texte du panneau et copie.</li>
+              <li>Panopto : ouvre la vidéo dans Panopto, onglet « Sous-titres », sélectionne tout le texte de la liste et copie.</li>
+              <li>TED : bouton « Read transcript » sous la vidéo, puis sélectionne et copie.</li>
+            </ul>
+          </details>
           <textarea value={transcript} onChange={(e) => setTranscript(e.target.value)} rows={4}
             className="w-full border rounded px-2 py-1 font-mono text-xs" placeholder="texte des sous-titres, avec ou sans minutage" />
           <button onClick={sendTranscript} disabled={tBusy || transcript.trim().length < 50}
