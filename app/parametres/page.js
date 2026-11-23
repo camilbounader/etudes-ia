@@ -86,6 +86,12 @@ export default function Parametres() {
               Connecté : <strong>{g.email || "compte Google"}</strong>{" "}
               <button onClick={async () => { await api("/api/google/status", { method: "DELETE" }); loadGoogle(); }} className="text-xs text-slate-500 underline ml-2">déconnecter</button>
             </p>
+            {g.missing?.length > 0 && (
+              <p className="bg-amber-50 border border-amber-300 rounded p-2 text-sm">
+                Autorisation manquante : {g.missing.join(" et ")}. Clique « déconnecter », puis « Connecter Google » et, sur l'écran de Google, coche bien
+                les cases (ou « Tout sélectionner »).
+              </p>
+            )}
             <div className="space-y-2">
               <label className="block">Dossier principal dans Drive
                 <input value={rootName} onChange={(e) => setRootName(e.target.value)} className="mt-1 w-full border rounded px-2 py-1" />

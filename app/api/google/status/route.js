@@ -10,7 +10,13 @@ export async function GET() {
   await ensureSchema();
   const g = await getGoogle();
   const drive = (await q(`select value from settings where key = 'drive'`))[0]?.value || null;
-  return Response.json({ connected: !!g?.refresh_token, email: g?.email || null, drive, configured: !!process.env.GOOGLE_CLIENT_ID });
+  const scope = g?.scope || "";
+  // Google laisse décocher chaque autorisation : on signale celles qui manquent
+  const missing = !g?.refresh_token || !scope ? [] : [
+    ...(scope.includes("drive.file") ? [] : ["Google Drive"]),
+    ...(scope.includes("calendar.events") ? [] : ["Google Agenda"]),
+  ];
+  return Response.json({ connected: !!g?.refresh_token, email: g?.email || null, drive, missing, configured: !!process.env.GOOGLE_CLIENT_ID });
 }
 
 // DELETE : déconnecter Google

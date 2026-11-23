@@ -34,6 +34,7 @@ export async function GET(request) {
     refresh_token: t.refresh_token || old.refresh_token,
     expires_at: Date.now() + (t.expires_in || 3600) * 1000,
     email,
+    scope: t.scope || old.scope || "",
   });
   return Response.redirect(`${url.origin}/parametres?google=ok`, 302);
 }
