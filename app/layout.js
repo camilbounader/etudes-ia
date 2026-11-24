@@ -2,12 +2,16 @@ import "./globals.css";
 import Background from "@/components/Background";
 import Header from "@/components/Header";
 import { THEME_SCRIPT } from "@/lib/theme";
+import RegisterSW from "@/components/RegisterSW";
 
 export const metadata = {
   title: "Études IA",
   description: "Corpus du master, citations et révisions",
-  icons: { icon: "/brand/uit-logo.png" },
+  icons: { icon: "/brand/uit-logo.png", apple: "/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "Études IA" },
 };
+
+export const viewport = { themeColor: "#003349" };
 
 export default function RootLayout({ children }) {
   return (
@@ -17,6 +21,7 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="text-slate-900 antialiased min-h-screen">
+        <RegisterSW />
         <Background />
         <Header />
         {children}
