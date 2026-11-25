@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { api } from "@/lib/api";
 import { DEFAULT_BG, DEFAULT_PHOTOS } from "@/lib/backgrounds";
+import { DEFAULT_PROFILE } from "@/lib/profileDefault";
+import AutoText from "@/components/AutoText";
 
 export default function Parametres() {
   const [bg, setBg] = useState(DEFAULT_BG);
@@ -11,6 +13,15 @@ export default function Parametres() {
   const [g, setG] = useState(null);
   const [gBusy, setGBusy] = useState("");
   const [rootName, setRootName] = useState("");
+  const [profile, setProfile] = useState("");
+  const [profileSaved, setProfileSaved] = useState(true);
+  useEffect(() => {
+    api("/api/settings?key=profile").then((d) => setProfile(d.value?.text || DEFAULT_PROFILE)).catch(() => setProfile(DEFAULT_PROFILE));
+  }, []);
+  async function saveProfile() {
+    await api("/api/settings", { method: "PUT", body: { key: "profile", value: { text: profile } } });
+    setProfileSaved(true);
+  }
 
   async function loadGoogle() {
     const s = await api("/api/google/status");
@@ -71,6 +82,21 @@ export default function Parametres() {
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Paramètres</h1>
+
+      <section className="bg-white border rounded-xl p-4 space-y-2">
+        <h2 className="font-semibold">Mon profil (pour les exemples personnels)</h2>
+        <p className="text-sm text-slate-600">
+          L'outil s'en sert pour te proposer des exemples tirés de ton parcours (chat, Atelier, travaux), toujours comme des pistes à confirmer : il
+          n'invente pas de souvenirs. Ajoute ce qui peut servir : expériences, interventions marquantes, missions, lieux, langues…
+        </p>
+        <AutoText value={profile} onChange={(e) => { setProfile(e.target.value); setProfileSaved(false); }} min={6} label="Mon profil" />
+        <div className="flex gap-3 items-center">
+          <button onClick={saveProfile} disabled={profileSaved} className="px-3 py-1.5 rounded bg-slate-900 text-white text-sm disabled:opacity-50">
+            {profileSaved ? "Enregistré" : "Enregistrer"}
+          </button>
+          <button onClick={() => { setProfile(DEFAULT_PROFILE); setProfileSaved(false); }} className="text-xs text-slate-500 underline">revenir au texte de départ</button>
+        </div>
+      </section>
 
       <section className="bg-white border rounded-xl p-4 space-y-3">
         <h2 className="font-semibold">Google Drive et Agenda</h2>

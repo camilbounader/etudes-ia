@@ -2,7 +2,7 @@ import { guard } from "@/lib/auth";
 import { ensureSchema } from "@/lib/schema";
 import { q } from "@/lib/db";
 
-const ALLOWED = ["backgrounds"];
+const ALLOWED = ["backgrounds", "profile"];
 
 // GET ?key=backgrounds
 export async function GET(request) {

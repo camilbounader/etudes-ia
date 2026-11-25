@@ -4,7 +4,8 @@ import { q } from "@/lib/db";
 import { searchPassages } from "@/lib/search";
 import { callClaude, callClaudeBlocks, parseJson, MODELS } from "@/lib/anthropic";
 import { diversify, toDocumentBlock, renderAnswer } from "@/lib/chat";
-import { loadAssignment, scopeOf, rulesText, materialsText, chatText } from "@/lib/atelier";
+import { loadAssignment, scopeOf, rulesText, materialsText, chatText, literatureText } from "@/lib/atelier";
+import { PERSONAL_EXAMPLES_RULE } from "@/lib/profile";
 import { PROFILE, STYLE_CHARTER, EXAMINER_FEEDBACK } from "@/lib/writingRules";
 import { runChecks, wordsExcludingCitations } from "@/lib/checks";
 import { extractCitations, matchDocument } from "@/lib/citeParse";
@@ -62,6 +63,7 @@ ${CITE}`,
         max_tokens: 4000,
         system: `Tu fais un brainstorming avec Camil pour un devoir. ${PROFILE}
 En français. Propose 3 ou 4 ANGLES distincts (## Angle 1 : titre…). Pour chacun : la thèse en une phrase, 3 arguments appuyés sur le corpus (cités), les contre-arguments ou limites, ce qui le rend original ou risqué, et un lien possible avec l'expérience de Camil ou un cas national précis (Norvège, France, Arctique) à vérifier.
+${PERSONAL_EXAMPLES_RULE}
 Termine par ## Mon conseil : quel angle choisir selon les critères du sujet, et pourquoi.
 ${a.thesis ? `Camil a déjà une idée de problématique : « ${a.thesis} ». Tiens-en compte.` : ""}
 Règles formelles : ${rulesText(a.rules)}
@@ -84,15 +86,16 @@ ${CITE}`,
         system: `You design the detailed outline of a Master's assignment for an international student. ${PROFILE}
 Total length: about ${target} words (excluding references), split across sections including a short introduction and conclusion.
 ${rulesText(a.rules)}
-Answer ONLY with JSON: {"thesis":"one-sentence thesis in English","sections":[{"title":"section title in English","words":number,"brief":"in French: what this section must do, key argument, which readings (by author, year) and which personal reflection to bring"}]}
+Answer ONLY with JSON: {"thesis":"one-sentence thesis in English","sections":[{"title":"section title in English","words":number,"brief":"in French: what this section must do, key argument, which readings (by author, year) and which personal example from Camil's profile could fit (as a suggestion)"}]}
 The words must add up to about ${target}. Use 4 to 8 sections. Prefer an argumentative progression (dialectical when relevant), no artificial headings if the assignment is a short essay.
+${PERSONAL_EXAMPLES_RULE}
 Available course readings:\n${docList}`,
         messages: [
           {
             role: "user",
             content: `ASSIGNMENT:\n${a.brief}\n\n${a.thesis ? `CHOSEN PROBLEM/ANGLE: ${a.thesis}\n\n` : ""}${
               materialsText(a, 10000) ? `CAMIL'S OWN NOTES, DRAFTS AND IDEAS (build the outline on them):\n${materialsText(a, 10000)}\n\n` : ""
-            }${chatText(a) ? `END OF OUR DISCUSSION (decisions taken there prevail):\n${chatText(a)}` : ""}`,
+            }${chatText(a) ? `END OF OUR DISCUSSION (decisions taken there prevail):\n${chatText(a)}\n\n` : ""}${literatureText(a) ? `EXTRA LITERATURE CHOSEN BY CAMIL (can be assigned to sections):\n${literatureText(a)}` : ""}`,
           },
         ],
       });
@@ -114,7 +117,7 @@ Available course readings:\n${docList}`,
       for (const c of cites) {
         const d = matchDocument(c, docs);
         if (d) matched.set(d.id, d);
-        else unmatched.push(c.raw);
+        else if (!matchDocument(c, a.literature?.items || [])) unmatched.push(c.raw);
         if (!c.page) noPage.push(c.raw);
       }
       const r = a.rules || {};

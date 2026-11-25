@@ -11,9 +11,10 @@ import { runChecks, wordsExcludingCitations } from "@/lib/checks";
 import { segmentsToMarked } from "@/lib/marked";
 import { AI_LEVELS, AI_DECLARATIONS } from "@/lib/atelierText";
 import { extractCitations, matchDocument } from "@/lib/citeParse";
+import { apaReference } from "@/lib/harvard";
 import { fileToText, FILE_ACCEPT } from "@/lib/fileText";
 
-const STEPS = ["Sujet", "Questions et discussion", "Mes matériaux", "Plan", "Rédaction", "Relecture", "Export Word / Docs"];
+const STEPS = ["Sujet", "Questions et discussion", "Mes matériaux", "Littérature hors pensum", "Plan", "Rédaction", "Relecture", "Export Word / Docs"];
 
 function Checks({ text, target }) {
   const list = useMemo(() => (text?.trim() ? runChecks(text, { target }) : []), [text, target]);
@@ -115,6 +116,7 @@ const TALK_STARTERS = [
   ["Par où commencer ?", "Avant de commencer : comment je m'organise pour ce devoir ? Donne-moi la méthode et les étapes, adaptées au type de devoir, aux critères et au temps qu'il me reste."],
   ["Chapitres à revoir", "Quels chapitres et quelles lectures de mon cours dois-je revoir en priorité pour ce devoir, et pour quoi faire exactement ?"],
   ["Ce qu'attend l'examinateur", "Qu'est-ce que l'examinateur attend vraiment ici, et quelles erreurs feraient perdre des points ?"],
+  ["Exemples personnels", "Quels exemples tirés de mon parcours (pompier en Gironde, prévention des risques en collectivité, France, Liban…) pourraient nourrir ce devoir ? Propose des pistes précises, je te dirai ce que j'ai réellement vécu."],
   ["Propose des angles", "Propose-moi 3 ou 4 angles possibles pour ce devoir, en partant de mes notes s'il y en a. Numérote-les."],
   ["Critique mon idée", "Voici mon idée pour ce devoir, critique-la honnêtement et aide-moi à la rendre plus solide : "],
   ["Quel angle choisir ?", "Selon les critères du sujet et de l'examinateur, quel angle est le plus solide pour moi, et pourquoi ?"],
@@ -231,6 +233,67 @@ function Discussion({ id, a, setAssignment }) {
           <button onClick={() => send()} disabled={busy || !input.trim()} className="px-4 rounded-lg bg-slate-900 text-white disabled:opacity-50">Envoyer</button>
         </div>
       </div>
+    </section>
+  );
+}
+
+// ---------- Littérature hors pensum (vraies publications, base OpenAlex) ----------
+function Literature({ id, a, setAssignment }) {
+  const [busy, setBusy] = useState(false);
+  const lit = a.literature;
+  async function search() {
+    setBusy(true);
+    try {
+      const r = await api(`/api/assignments/${id}/literature`, { method: "POST" });
+      setAssignment({ literature: r.literature });
+    } catch (e) {
+      alert(e.message);
+    }
+    setBusy(false);
+  }
+  async function keep(item, kept) {
+    const r = await api(`/api/assignments/${id}/literature`, { method: "PATCH", body: { itemId: item.id, kept } });
+    setAssignment({ literature: r.literature });
+  }
+  async function toMaterials(item) {
+    const text = `${item.reference}\n\nRésumé : ${item.abstract}\n\nPourquoi : ${item.why}\nComment l'utiliser : ${item.use}\nLien : ${item.oa_url || item.url}`;
+    const r = await api(`/api/assignments/${id}/materials`, { method: "POST", body: { type: "file", name: `Hors pensum : ${item.intext}`, text } });
+    setAssignment({ materials: r.materials });
+    await keep(item, true);
+  }
+  return (
+    <section className="space-y-3">
+      <p className="text-sm text-slate-600">
+        La grille donne un bonus à la « connaissance de la littérature au-delà du pensum ». L'outil cherche de <strong>vraies publications</strong> dans
+        OpenAlex (base ouverte de plus de 250 millions de travaux), puis garde les plus utiles pour ton sujet et ton angle. Les références (auteurs,
+        année, revue, DOI) viennent de la base, pas de l'IA. Seul le résumé est connu : lis au moins le résumé et l'introduction avant de citer.
+      </p>
+      <button onClick={search} disabled={busy} className="px-3 py-1.5 rounded bg-slate-900 text-white text-sm disabled:opacity-50">
+        {busy ? "Recherche dans OpenAlex (environ 1 min)…" : lit?.items?.length ? "Chercher à nouveau (garde ce que tu as retenu)" : "Chercher de la littérature hors pensum"}
+      </button>
+      {lit?.queries?.length > 0 && <p className="text-xs text-slate-500">Recherches faites : {lit.queries.join(" · ")}</p>}
+      {(lit?.items || []).map((x) => (
+        <div key={x.id} className={`bg-white border rounded-lg p-3 text-sm space-y-1 ${x.kept ? "border-green-700 border-2" : ""}`}>
+          <p className="font-medium">{x.title}</p>
+          <p className="text-xs text-slate-500">{x.authors.slice(0, 4).join("; ")}{x.authors.length > 4 ? " et al." : ""} · {x.year} · {x.venue} · cité {x.cited} fois</p>
+          {x.why && <p><strong>Apport : </strong>{x.why}</p>}
+          {x.use && <p><strong>Dans ton devoir : </strong>{x.use}</p>}
+          <details className="text-xs text-slate-600"><summary className="cursor-pointer">Résumé</summary><p className="mt-1">{x.abstract}</p></details>
+          <p className="text-xs font-mono bg-slate-50 rounded p-1">{x.apa}</p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <a href={x.url} target="_blank" className="text-xs px-2 py-1 rounded bg-slate-100 hover:bg-slate-200">Ouvrir (DOI)</a>
+            {x.oa_url && <a href={x.oa_url} target="_blank" className="text-xs px-2 py-1 rounded bg-green-100 hover:bg-green-200">Texte intégral gratuit</a>}
+            <button onClick={() => keep(x, !x.kept)} className={`text-xs px-2 py-1 rounded ${x.kept ? "bg-green-700 text-white" : "bg-slate-100 hover:bg-slate-200"}`}>
+              {x.kept ? "Retenue ✓" : "Retenir"}
+            </button>
+            <button onClick={() => toMaterials(x)} className="text-xs px-2 py-1 rounded bg-slate-100 hover:bg-slate-200">Ajouter à mes matériaux</button>
+            <button onClick={() => navigator.clipboard?.writeText(`(${x.intext})`)} className="text-xs px-2 py-1 rounded bg-slate-100 hover:bg-slate-200">Copier ({x.intext})</button>
+          </div>
+        </div>
+      ))}
+      {lit?.items?.length > 0 && (
+        <p className="text-xs text-slate-500">Les publications <strong>retenues</strong> sont connues de la discussion, du plan et des modèles, et ajoutées à la liste de références du Word quand tu les cites.</p>
+      )}
     </section>
   );
 }
@@ -369,6 +432,7 @@ export default function AtelierPage() {
   const [declaration, setDeclaration] = useState("");
   const [withHeadings, setWithHeadings] = useState(true);
   const [lang, setLang] = useState("en");
+  const [refStyle, setRefStyle] = useState("apa");
   const [docLink, setDocLink] = useState("");
 
   async function load() {
@@ -406,7 +470,7 @@ export default function AtelierPage() {
     if (!a.thesis && planDraft.thesis) await patch({ thesis: planDraft.thesis });
     setPlanDraft(null);
     await load();
-    setStep(4);
+    setStep(5);
   }
   const setRule = (k, v) => patch({ rules: { ...rules, [k]: v } });
   const totalWords = d.sections.reduce((n, s) => n + wordsExcludingCitations(s.my_text || ""), 0);
@@ -417,12 +481,14 @@ export default function AtelierPage() {
     const texts = parts.map((p) => p.text).join("\n");
     const used = new Map();
     const unknown = new Set();
+    const pool = [...d.docs, ...(a.literature?.items || []).map((x) => ({ ...x, id: `lit-${x.id}` }))];
     for (const c of extractCitations(texts)) {
-      const doc = matchDocument(c, d.docs);
+      const doc = matchDocument(c, pool);
       if (doc) used.set(doc.id, doc);
       else unknown.add(c.raw);
     }
-    return { refs: [...used.values()].map((x) => x.reference).sort(), unknown: [...unknown] };
+    const fmt = (x) => (refStyle === "apa" ? (x.apa || (x.metadata?.title ? apaReference(x.metadata) : x.reference)) : x.reference);
+    return { refs: [...used.values()].map(fmt).sort((p, q) => p.localeCompare(q)), unknown: [...unknown] };
   }
   const refTitle = lang === "fr" ? "Références" : "References";
   const declTitle = lang === "fr" ? "Déclaration d'usage de l'IA" : "AI-usage statement";
@@ -497,7 +563,7 @@ export default function AtelierPage() {
         {STEPS.map((label, i) => (
           <button key={label} onClick={() => setStep(i)}
             className={`px-3 py-1.5 rounded text-sm ${step === i ? "bg-[#003349] text-white" : "bg-white border hover:bg-slate-50"}`}>
-            {i + 1}. {label}{i === 2 && (a.materials || []).length ? ` (${a.materials.length})` : ""}
+            {i + 1}. {label}{i === 2 && (a.materials || []).length ? ` (${a.materials.length})` : ""}{i === 3 && (a.literature?.items || []).some((x) => x.kept) ? ` (${a.literature.items.filter((x) => x.kept).length})` : ""}
           </button>
         ))}
         <span className="ml-auto text-sm text-slate-600 self-center">
@@ -509,9 +575,30 @@ export default function AtelierPage() {
         <section className="space-y-3">
           <AutoText value={a.brief || ""} onChange={(e) => setAssignment({ brief: e.target.value })} onBlur={(e) => patch({ brief: e.target.value })} min={10}
             placeholder="Colle ici le sujet et toutes les consignes (longueur, lectures, format, niveau d'IA, critères…)" />
-          <button onClick={() => run("analyze")} disabled={!!busy} className="px-3 py-1.5 rounded bg-slate-900 text-white text-sm disabled:opacity-50">
-            {busy === "analyze" ? "Analyse…" : "Analyser le sujet"}
-          </button>
+          <div className="flex flex-wrap gap-2 items-center">
+            <label className="px-3 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-sm cursor-pointer">
+              📎 Déposer le sujet (PDF, Word, photo)
+              <input type="file" multiple accept={FILE_ACCEPT} className="hidden" onChange={async (e) => {
+                const files = [...e.target.files];
+                e.target.value = "";
+                setBusy("subject");
+                try {
+                  let added = "";
+                  for (const f of files) added += `${added ? "\n\n" : ""}${await fileToText(f, () => {})}`;
+                  const brief = a.brief?.trim() ? `${a.brief.trim()}\n\n${added}` : added;
+                  await patch({ brief });
+                  if (confirm("Sujet ajouté. Lancer l'analyse maintenant ?")) await run("analyze");
+                } catch (err) {
+                  alert(err.message);
+                }
+                setBusy("");
+              }} />
+            </label>
+            <button onClick={() => run("analyze")} disabled={!!busy} className="px-3 py-1.5 rounded bg-slate-900 text-white text-sm disabled:opacity-50">
+              {busy === "analyze" ? "Analyse…" : "Analyser le sujet"}
+            </button>
+            {busy === "subject" && <span className="text-sm text-slate-500">Lecture du document…</span>}
+          </div>
           <div className="bg-white border rounded-lg p-3 grid sm:grid-cols-3 gap-3 text-sm">
             <label>Mots visés <input type="number" defaultValue={rules.words_target || ""} onBlur={(e) => setRule("words_target", Number(e.target.value) || null)} className="border rounded px-2 py-1 w-full" /></label>
             <label>Minimum <input type="number" defaultValue={rules.words_min || ""} onBlur={(e) => setRule("words_min", Number(e.target.value) || null)} className="border rounded px-2 py-1 w-full" /></label>
@@ -537,9 +624,11 @@ export default function AtelierPage() {
 
       {step === 2 && <Materials id={id} materials={a.materials || []} setMaterials={(m) => setAssignment({ materials: m })} />}
 
+      {step === 3 && <Literature id={id} a={a} setAssignment={setAssignment} />}
+
       {step === 1 && <Discussion key={a.id} id={id} a={a} setAssignment={setAssignment} />}
 
-      {step === 3 && (
+      {step === 4 && (
         <section className="space-y-3">
           <p className="text-sm text-slate-600">Problématique : {a.thesis || <em>aucune (à fixer dans « Discussion »)</em>}. Le plan proposé part de tes matériaux et de la discussion ; tu peux tout modifier.</p>
           <button onClick={() => run("plan")} disabled={!!busy} className="px-3 py-1.5 rounded bg-slate-900 text-white text-sm disabled:opacity-50">
@@ -591,9 +680,9 @@ export default function AtelierPage() {
         </section>
       )}
 
-      {step === 4 && (
+      {step === 5 && (
         <section className="space-y-3">
-          {!d.sections.length && <p className="text-slate-600">Commence par adopter un plan (étape 4).</p>}
+          {!d.sections.length && <p className="text-slate-600">Commence par adopter un plan (étape 5).</p>}
           {d.sections.length > 0 && (
             <p className="text-sm text-slate-600">
               Pour chaque partie : rédige en français si tu veux, puis traduis ou écris la version anglaise. C'est la <strong>version anglaise</strong> qui part dans le
@@ -606,7 +695,7 @@ export default function AtelierPage() {
         </section>
       )}
 
-      {step === 5 && (
+      {step === 6 && (
         <section className="space-y-3">
           <p className="text-sm text-slate-600">
             La relecture ne modifie rien toute seule : elle lit tout le devoir, vérifie la forme (mots, lectures citées, pages) et te donne les corrections
@@ -632,18 +721,24 @@ export default function AtelierPage() {
         </section>
       )}
 
-      {step === 6 && (
+      {step === 7 && (
         <section className="space-y-3 bg-white border rounded-lg p-4">
           <p className="text-sm">
             Le document reprend la <strong>version finale de chaque partie</strong> : ta version (anglaise ou française selon le choix ci-dessous). Si une partie
-            n'a pas de version, c'est le modèle de cette langue qui est repris, signalé ci-dessous. Times New Roman 12, interligne 1,5, références Harvard des
-            lectures citées et déclaration d'usage de l'IA.
+            n'a pas de version, c'est le modèle de cette langue qui est repris, signalé ci-dessous. Times New Roman 12, interligne 1,5, liste de références (APA ou
+            Harvard) des lectures et publications hors pensum que tu cites, et déclaration d'usage de l'IA.
           </p>
           <div className="flex flex-wrap gap-4 text-sm items-center">
             <label>Langue :{" "}
               <select value={lang} onChange={(e) => setLang(e.target.value)} className="border rounded px-2 py-1">
                 <option value="en">anglais (version finale)</option>
                 <option value="fr">français</option>
+              </select>
+            </label>
+            <label>Références :{" "}
+              <select value={refStyle} onChange={(e) => setRefStyle(e.target.value)} className="border rounded px-2 py-1">
+                <option value="apa">APA 7</option>
+                <option value="harvard">Harvard</option>
               </select>
             </label>
             <label className="flex items-center gap-2"><input type="checkbox" checked={withHeadings} onChange={(e) => setWithHeadings(e.target.checked)} /> Garder les titres des parties</label>

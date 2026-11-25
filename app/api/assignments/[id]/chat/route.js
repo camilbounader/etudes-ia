@@ -4,7 +4,8 @@ import { q } from "@/lib/db";
 import { searchPassages } from "@/lib/search";
 import { callClaudeBlocks, MODELS } from "@/lib/anthropic";
 import { diversify, toDocumentBlock, renderAnswer } from "@/lib/chat";
-import { loadAssignment, scopeOf, rulesText, materialsText } from "@/lib/atelier";
+import { loadAssignment, scopeOf, rulesText, materialsText, literatureText } from "@/lib/atelier";
+import { PERSONAL_EXAMPLES_RULE } from "@/lib/profile";
 import { PROFILE, EXAMINER_FEEDBACK } from "@/lib/writingRules";
 import { structureText } from "@/lib/structure";
 
@@ -40,6 +41,7 @@ ${a.brief || "(pas encore collé)"}
 Règles formelles : ${rulesText(a.rules) || "—"}
 Problématique retenue : ${a.thesis || "pas encore choisie"}
 ${plan ? `Plan actuel :\n${plan}` : ""}
+${literatureText(a) ? `LITTÉRATURE HORS PENSUM RETENUE PAR CAMIL (vraies publications ; citable avec (Auteur, année) ; tu ne connais que leur résumé) :\n${literatureText(a)}` : ""}
 ${courseMap ? `Plan du cours et du master (pour conseiller quels chapitres revoir, en les nommant) :\n${courseMap.slice(0, 6000)}` : ""}
 ${materials ? `NOTES, BROUILLONS ET DOCUMENTS DÉPOSÉS PAR CAMIL (ses idées : pars-en, cite-les quand tu t'en sers, ne les contredis pas sans le dire) :\n${materials}` : ""}
 
@@ -50,6 +52,7 @@ Façon de travailler :
 - Quand une problématique ou un plan semble arrêté, propose une formulation claire qu'il pourra coller dans le champ « Problématique » ou utiliser pour le plan.
 - Rédaction dans la discussion : seulement s'il le demande ; dans ce cas, texte complet, d'un seul tenant.
 - Langue : celle de son dernier message (français par défaut). Les citations textuelles restent en anglais.
+${PERSONAL_EXAMPLES_RULE}
 ${EXAMINER_FEEDBACK}
 Cite les documents joints (fonction de citation) ; l'application ajoute la référence Harvard et la page. N'écris jamais de référence toi-même. Les « fiche perso » ne sont pas des sources. Ce qui vient de tes connaissances générales commence par « Hors corpus : ».`;
 

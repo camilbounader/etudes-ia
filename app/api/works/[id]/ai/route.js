@@ -5,6 +5,7 @@ import { searchPassages } from "@/lib/search";
 import { callClaudeBlocks, MODELS } from "@/lib/anthropic";
 import { diversify, toDocumentBlock, renderAnswer } from "@/lib/chat";
 import { runChecks } from "@/lib/checks";
+import { PERSONAL_EXAMPLES_RULE } from "@/lib/profile";
 import { PROFILE, STYLE_CHARTER, EXAMINER_FEEDBACK } from "@/lib/writingRules";
 
 export const maxDuration = 300;
@@ -27,7 +28,8 @@ Puces, chacune appuyée sur le corpus (citations).
 ## Angles critiques possibles
 2 à 4 tensions, limites ou débats à exploiter, avec une question à se poser pour chacun.
 ## Ton expérience
-1 ou 2 idées pour relier la question à son expérience (prévention, pompier en Gironde) ou à un cas français, à développer par lui-même.
+2 ou 3 pistes concrètes pour relier la question à son profil (pompier en Gironde, prévention des risques en collectivité, France, Liban…) ou à un cas français ou libanais précis, à développer par lui-même.
+${PERSONAL_EXAMPLES_RULE}
 ## Pièges à éviter
 2 ou 3 puces (d'après les retours de l'examinateur).
 ${EXAMINER_FEEDBACK}
@@ -43,7 +45,7 @@ ${CITE}`,
 ${PROFILE}
 Length: about ${target} words excluding parenthetical citations (±15%). Write in English.
 ${work.kind === "qc" ? "Format: a short paragraph titled 'Comment' (deep, analytical engagement with the readings, in his own voice) and one titled 'Question' (a discussion question that can open a debate or critique the text)." : "Format: continuous paragraphs answering the question directly."}
-Where personal reflection or experience is expected, insert 1 to 3 placeholders in French like "[À TOI : relie à ton expérience de … ]" instead of inventing his experiences.
+Where personal reflection or experience is expected, insert 1 to 3 placeholders in French like "[À TOI : piste — ex. lors des feux de forêt en Gironde, comment …]" that suggest a CONCRETE example from his profile for him to confirm and write himself; never invent his experiences.
 ${STYLE_CHARTER}
 ${EXAMINER_FEEDBACK}
 ${CITE}`,

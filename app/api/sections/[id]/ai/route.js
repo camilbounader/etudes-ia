@@ -4,7 +4,8 @@ import { q } from "@/lib/db";
 import { searchPassages } from "@/lib/search";
 import { callClaude, callClaudeBlocks, MODELS } from "@/lib/anthropic";
 import { diversify, toDocumentBlock, renderAnswer } from "@/lib/chat";
-import { loadAssignment, scopeOf, rulesText, materialsText, chatText } from "@/lib/atelier";
+import { loadAssignment, scopeOf, rulesText, materialsText, chatText, literatureText } from "@/lib/atelier";
+import { PERSONAL_EXAMPLES_RULE } from "@/lib/profile";
 import { PROFILE, STYLE_CHARTER, EXAMINER_FEEDBACK } from "@/lib/writingRules";
 import { runChecks } from "@/lib/checks";
 
@@ -58,13 +59,14 @@ ${PROFILE}
 Section: « ${s.title} » — about ${s.words || 300} words excluding parenthetical citations (±15%), ${lang === "fr" ? "in FRENCH (Camil will write his English version from it; keep verbatim quotations in English)" : "in English"}.
 What this section must do (Camil's plan, in French): ${s.brief || "—"}
 Assignment rules: ${rulesText(a.rules)}
-Write only this section (no title line, no other sections). Make it connect logically with what precedes. Where personal reflection or experience is expected, insert 1 or 2 placeholders in French like "[À TOI : … ]" instead of inventing his experiences.
+Write only this section (no title line, no other sections). Make it connect logically with what precedes. Where personal reflection or experience is expected, insert 1 or 2 placeholders in French like "[À TOI : piste — ex. ton expérience de … en Gironde]" that suggest a CONCRETE example from his profile for him to confirm and write himself; never invent his experiences.
+${PERSONAL_EXAMPLES_RULE}
 ${STYLE_CHARTER}
 ${EXAMINER_FEEDBACK}
 ${CITE}`;
       const mats = materialsText(a, 8000);
       const talk = chatText(a, 4000);
-      user = `ASSIGNMENT:\n${a.brief}\n\nTHESIS: ${a.thesis || "—"}\n\nFULL OUTLINE:\n${plan}\n\n${mats ? `CAMIL'S OWN NOTES AND DRAFTS (use his ideas and examples first):\n${mats}\n\n` : ""}${talk ? `END OF OUR DISCUSSION:\n${talk}\n\n` : ""}${s.text_fr && lang !== "fr" ? `CAMIL'S FRENCH DRAFT OF THIS SECTION (follow its ideas):\n${s.text_fr}\n\n` : ""}WHAT CAMIL HAS ALREADY WRITTEN BEFORE THIS SECTION:\n${before || "(nothing yet)"}`;
+      user = `ASSIGNMENT:\n${a.brief}\n\nTHESIS: ${a.thesis || "—"}\n\nFULL OUTLINE:\n${plan}\n\n${mats ? `CAMIL'S OWN NOTES AND DRAFTS (use his ideas and examples first):\n${mats}\n\n` : ""}${talk ? `END OF OUR DISCUSSION:\n${talk}\n\n` : ""}${literatureText(a) ? `EXTRA (NON-PENSUM) LITERATURE CHOSEN BY CAMIL — real publications, cite as (Author, year) without page unless known; you only know their abstracts, do not overstate them:\n${literatureText(a)}\n\n` : ""}${s.text_fr && lang !== "fr" ? `CAMIL'S FRENCH DRAFT OF THIS SECTION (follow its ideas):\n${s.text_fr}\n\n` : ""}WHAT CAMIL HAS ALREADY WRITTEN BEFORE THIS SECTION:\n${before || "(nothing yet)"}`;
     } else {
       const mine = s.my_text?.trim() ? s.my_text : s.text_fr || "";
       if (!mine.trim()) return Response.json({ error: "Écris d'abord ta version de cette partie." }, { status: 400 });
