@@ -6,21 +6,14 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import Answer from "@/components/Answer";
 import MicButton from "@/components/MicButton";
+import AutoText from "@/components/AutoText";
 import { runChecks, wordsExcludingCitations } from "@/lib/checks";
 import { segmentsToMarked } from "@/lib/marked";
 import { AI_LEVELS, AI_DECLARATIONS } from "@/lib/atelierText";
 import { extractCitations, matchDocument } from "@/lib/citeParse";
+import { fileToText, FILE_ACCEPT } from "@/lib/fileText";
 
-const STEPS = ["Sujet", "Mes matériaux", "Discussion", "Plan", "Rédaction", "Relecture", "Export Word / Docs"];
-
-// Zone de texte qui grandit avec son contenu
-function AutoText({ value, onChange, onBlur, min = 4, max = 40, className = "", ...rest }) {
-  const lines = String(value || "").split("\n").reduce((n, l) => n + 1 + Math.floor(l.length / 95), 0);
-  return (
-    <textarea value={value} onChange={onChange} onBlur={onBlur} rows={Math.max(min, Math.min(max, lines + 1))}
-      className={`w-full border rounded p-2 text-sm bg-white ${className}`} {...rest} />
-  );
-}
+const STEPS = ["Sujet", "Questions et discussion", "Mes matériaux", "Plan", "Rédaction", "Relecture", "Export Word / Docs"];
 
 function Checks({ text, target }) {
   const list = useMemo(() => (text?.trim() ? runChecks(text, { target }) : []), [text, target]);
@@ -38,43 +31,6 @@ function Checks({ text, target }) {
 const plainOf = (v) => (v?.segments ? v.segments.map((x) => x.text + (x.cites?.length ? ` (${x.cites.map((c) => c.label).join("; ")})` : "")).join("").trim() : "");
 
 // ---------- Matériaux : notes, brouillons, fichiers, photos ----------
-async function fileToText(file, onStatus) {
-  const name = file.name.toLowerCase();
-  if (name.endsWith(".pdf")) {
-    const { extractPdf } = await import("@/lib/pdfClient");
-    const pages = await extractPdf(file, (i, n) => onStatus(`${file.name} : page ${i}/${n}`));
-    return pages.map((p, i) => `[p. ${i + 1}]\n${p.text}`).join("\n\n");
-  }
-  if (name.endsWith(".docx")) {
-    const JSZip = (await import("jszip")).default;
-    const zip = await JSZip.loadAsync(file);
-    const xml = await zip.file("word/document.xml").async("string");
-    const text = (xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || [])
-      .map((p) => (p.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || []).map((t) => t.replace(/<[^>]+>/g, "")).join(""))
-      .filter((t) => t.trim())
-      .join("\n")
-      .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&apos;/g, "'").replace(/&quot;/g, '"');
-    if (text.trim()) return text;
-    // Word rempli de captures : on lit les images
-    const { imagesFromDocx, toJpegBase64 } = await import("@/lib/imageClient");
-    const imgs = await imagesFromDocx(file);
-    const out = [];
-    for (const [i, img] of imgs.entries()) {
-      onStatus(`${file.name} : image ${i + 1}/${imgs.length}`);
-      const r = await api("/api/ocr", { method: "POST", body: { image: await toJpegBase64(img), mode: "notes" } });
-      out.push(r.text);
-    }
-    return out.join("\n\n");
-  }
-  if (file.type.startsWith("image/")) {
-    const { toJpegBase64 } = await import("@/lib/imageClient");
-    onStatus(`${file.name} : lecture de l'image…`);
-    const r = await api("/api/ocr", { method: "POST", body: { image: await toJpegBase64(file), mode: "notes" } });
-    return r.text;
-  }
-  return await file.text();
-}
-
 function Materials({ id, materials, setMaterials }) {
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
@@ -127,7 +83,7 @@ function Materials({ id, materials, setMaterials }) {
           <button onClick={addNote} disabled={!note.trim()} className="px-3 py-1.5 rounded bg-slate-900 text-white text-sm disabled:opacity-50">Ajouter la note</button>
           <label className="px-3 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-sm cursor-pointer">
             Ajouter des fichiers ou photos
-            <input type="file" multiple accept=".pdf,.docx,.txt,.md,image/*" className="hidden" onChange={(e) => { addFiles([...e.target.files]); e.target.value = ""; }} />
+            <input type="file" multiple accept={FILE_ACCEPT} className="hidden" onChange={(e) => { addFiles([...e.target.files]); e.target.value = ""; }} />
           </label>
           <span className="text-xs text-slate-500">PDF, Word, texte, photos (lues automatiquement, même manuscrites)</span>
         </div>
@@ -156,6 +112,9 @@ function Materials({ id, materials, setMaterials }) {
 
 // ---------- Discussion (brainstorm) ----------
 const TALK_STARTERS = [
+  ["Par où commencer ?", "Avant de commencer : comment je m'organise pour ce devoir ? Donne-moi la méthode et les étapes, adaptées au type de devoir, aux critères et au temps qu'il me reste."],
+  ["Chapitres à revoir", "Quels chapitres et quelles lectures de mon cours dois-je revoir en priorité pour ce devoir, et pour quoi faire exactement ?"],
+  ["Ce qu'attend l'examinateur", "Qu'est-ce que l'examinateur attend vraiment ici, et quelles erreurs feraient perdre des points ?"],
   ["Propose des angles", "Propose-moi 3 ou 4 angles possibles pour ce devoir, en partant de mes notes s'il y en a. Numérote-les."],
   ["Critique mon idée", "Voici mon idée pour ce devoir, critique-la honnêtement et aide-moi à la rendre plus solide : "],
   ["Quel angle choisir ?", "Selon les critères du sujet et de l'examinateur, quel angle est le plus solide pour moi, et pourquoi ?"],
@@ -165,6 +124,23 @@ const TALK_STARTERS = [
 
 function Discussion({ id, a, setAssignment }) {
   const [chat, setChat] = useState(a.chat || []);
+  const [attachStatus, setAttachStatus] = useState("");
+  async function attach(files) {
+    const names = [];
+    for (const f of files) {
+      try {
+        setAttachStatus(`${f.name} : lecture…`);
+        const text = await fileToText(f, setAttachStatus);
+        const r = await api(`/api/assignments/${id}/materials`, { method: "POST", body: { type: "file", name: f.name, text } });
+        setAssignment({ materials: r.materials });
+        names.push(f.name);
+      } catch (e) {
+        alert(`${f.name} : ${e.message}`);
+      }
+    }
+    setAttachStatus("");
+    if (names.length) setInput((t) => `${t ? t + "\n" : ""}J'ai ajouté à mes matériaux : ${names.map((n) => `« ${n} »`).join(", ")}. `);
+  }
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [thesis, setThesis] = useState(a.thesis || "");
@@ -230,6 +206,7 @@ function Discussion({ id, a, setAssignment }) {
           )
         )}
         {busy && <p className="text-sm text-slate-500">Réflexion (corpus, tes matériaux, le sujet)…</p>}
+        {attachStatus && <p className="text-sm text-slate-500">{attachStatus}</p>}
         <div ref={bottom} />
       </div>
       <div className="sticky bottom-0 bg-slate-50 pt-2 pb-2 space-y-2">
@@ -242,9 +219,15 @@ function Discussion({ id, a, setAssignment }) {
         </div>
         <div className="flex gap-2">
           <MicButton onText={(t) => setInput(t)} />
-          <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={3}
-            onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) send(); }}
-            className="flex-1 border rounded-lg p-2 text-sm bg-white" placeholder="Ton idée, ta question, ton désaccord… (Ctrl+Entrée pour envoyer)" />
+          <label className="rounded-lg px-3 bg-white border hover:bg-slate-50 cursor-pointer flex items-center" title="Joindre des documents ou photos (ajoutés à tes matériaux)">
+            📎
+            <input type="file" multiple accept={FILE_ACCEPT} className="hidden" onChange={(e) => { attach([...e.target.files]); e.target.value = ""; }} />
+          </label>
+          <div className="flex-1">
+            <AutoText value={input} onChange={(e) => setInput(e.target.value)} min={3} max={12} label="Mon message"
+              onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) send(); }}
+              placeholder="Ta question, ton idée, ton désaccord… (Ctrl+Entrée pour envoyer)" />
+          </div>
           <button onClick={() => send()} disabled={busy || !input.trim()} className="px-4 rounded-lg bg-slate-900 text-white disabled:opacity-50">Envoyer</button>
         </div>
       </div>
@@ -351,7 +334,7 @@ function SectionCard({ s, index, onSaved, defaultOpen }) {
               <button onClick={() => setTab("fr")} className={`text-sm px-3 py-1 rounded-t ${tab === "fr" ? "bg-[#003349] text-white" : "bg-slate-100"}`}>Version française (facultative)</button>
               <button onClick={() => setTab("en")} className={`text-sm px-3 py-1 rounded-t ${tab === "en" ? "bg-[#003349] text-white" : "bg-slate-100"}`}>Version anglaise (finale)</button>
             </div>
-            <AutoText value={current} min={10} max={60}
+            <AutoText value={current} min={10} max={60} label={`${index + 1}. ${s.title} — version ${tab === "fr" ? "française" : "anglaise"}`}
               onChange={(e) => { tab === "fr" ? setFr(e.target.value) : setEn(e.target.value); setDirty(true); }}
               onBlur={() => dirty && save()}
               placeholder={tab === "fr" ? "Rédige d'abord en français si tu préfères, puis « Traduire ma version FR → EN »." : "Ta version finale en anglais, avec tes citations (Auteur, année, p. X). C'est elle qui part dans le Word."} />
@@ -514,7 +497,7 @@ export default function AtelierPage() {
         {STEPS.map((label, i) => (
           <button key={label} onClick={() => setStep(i)}
             className={`px-3 py-1.5 rounded text-sm ${step === i ? "bg-[#003349] text-white" : "bg-white border hover:bg-slate-50"}`}>
-            {i + 1}. {label}{i === 1 && (a.materials || []).length ? ` (${a.materials.length})` : ""}
+            {i + 1}. {label}{i === 2 && (a.materials || []).length ? ` (${a.materials.length})` : ""}
           </button>
         ))}
         <span className="ml-auto text-sm text-slate-600 self-center">
@@ -548,13 +531,13 @@ export default function AtelierPage() {
             <label className="sm:col-span-3">Date limite / format <input defaultValue={[rules.deadline, rules.format_notes].filter(Boolean).join(" · ")} onBlur={(e) => setRule("format_notes", e.target.value)} className="border rounded px-2 py-1 w-full" /></label>
           </div>
           {a.analysis && <div className="bg-white border rounded-lg p-4"><Answer message={{ citations: a.analysis }} /></div>}
-          <button onClick={() => setStep(1)} className="text-sm text-blue-700 hover:underline">Étape suivante : déposer mes notes et brouillons →</button>
+          <button onClick={() => setStep(1)} className="text-sm text-blue-700 hover:underline">Étape suivante : poser mes questions (méthode, chapitres à revoir…) →</button>
         </section>
       )}
 
-      {step === 1 && <Materials id={id} materials={a.materials || []} setMaterials={(m) => setAssignment({ materials: m })} />}
+      {step === 2 && <Materials id={id} materials={a.materials || []} setMaterials={(m) => setAssignment({ materials: m })} />}
 
-      {step === 2 && <Discussion key={a.id} id={id} a={a} setAssignment={setAssignment} />}
+      {step === 1 && <Discussion key={a.id} id={id} a={a} setAssignment={setAssignment} />}
 
       {step === 3 && (
         <section className="space-y-3">

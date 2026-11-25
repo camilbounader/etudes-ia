@@ -13,7 +13,7 @@ export async function POST(request) {
   const denied = await guard();
   if (denied) return denied;
   await ensureSchema();
-  const { conversationId, message, oral } = await request.json();
+  const { conversationId, message, oral, attachments = [] } = await request.json();
   if (!message?.trim()) return Response.json({ error: "Message vide" }, { status: 400 });
 
   try {
@@ -41,6 +41,11 @@ export async function POST(request) {
         role: "user",
         content: [
           ...passages.map(toDocumentBlock),
+          // documents joints par Camil (ce ne sont pas des sources du corpus)
+          ...attachments.slice(0, 5).map((f) => ({
+            type: "text",
+            text: `DOCUMENT JOINT PAR CAMIL « ${String(f.name).slice(0, 100)} » (pas une source du corpus : ne le cite pas comme une lecture du cours) :\n${String(f.text || "").slice(0, 40000)}`,
+          })),
           {
             type: "text",
             text: passages.length
@@ -80,7 +85,9 @@ export async function POST(request) {
     }
     const { segments, plain } = renderAnswer(blocks, passages);
 
-    await q(`insert into messages (conversation_id, role, content) values ($1, 'user', $2)`, [conv.id, message]);
+    // on garde un extrait des documents joints dans l'historique, pour la suite de la conversation
+    const stored = message + attachments.slice(0, 5).map((f) => `\n\n📎 Document joint « ${f.name} » (extrait) :\n${String(f.text || "").slice(0, 6000)}`).join("");
+    await q(`insert into messages (conversation_id, role, content) values ($1, 'user', $2)`, [conv.id, stored]);
     const saved = await q(
       `insert into messages (conversation_id, role, content, citations) values ($1, 'assistant', $2, $3) returning id, created_at`,
       [conv.id, plain, JSON.stringify({ segments, usage, truncated })]

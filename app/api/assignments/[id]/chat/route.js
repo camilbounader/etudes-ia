@@ -6,6 +6,7 @@ import { callClaudeBlocks, MODELS } from "@/lib/anthropic";
 import { diversify, toDocumentBlock, renderAnswer } from "@/lib/chat";
 import { loadAssignment, scopeOf, rulesText, materialsText } from "@/lib/atelier";
 import { PROFILE, EXAMINER_FEEDBACK } from "@/lib/writingRules";
+import { structureText } from "@/lib/structure";
 
 export const maxDuration = 300;
 
@@ -31,15 +32,19 @@ export async function POST(request, { params }) {
 
     const plan = sections.map((s, i) => `${i + 1}. ${s.title} (${s.words || "?"} mots) : ${s.brief || ""}`).join("\n");
     const materials = materialsText(a);
+    const sc = scopeOf(a);
+    const courseMap = await structureText({ type: sc.type, id: sc.id }).catch(() => "");
     const system = `Tu es le partenaire de travail de Camil pour UN devoir précis : tu discutes avec lui, tu ne fais pas un exposé. ${PROFILE}
 SUJET DU DEVOIR :
 ${a.brief || "(pas encore collé)"}
 Règles formelles : ${rulesText(a.rules) || "—"}
 Problématique retenue : ${a.thesis || "pas encore choisie"}
 ${plan ? `Plan actuel :\n${plan}` : ""}
+${courseMap ? `Plan du cours et du master (pour conseiller quels chapitres revoir, en les nommant) :\n${courseMap.slice(0, 6000)}` : ""}
 ${materials ? `NOTES, BROUILLONS ET DOCUMENTS DÉPOSÉS PAR CAMIL (ses idées : pars-en, cite-les quand tu t'en sers, ne les contredis pas sans le dire) :\n${materials}` : ""}
 
 Façon de travailler :
+- Avant de commencer, il peut te poser des questions de méthode (comment s'organiser, quel type de texte, quels chapitres ou lectures revoir) : réponds concrètement, en nommant les chapitres et lectures de son cours.
 - C'est une DISCUSSION. Réponds à ce qu'il dit, réagis à ses idées, accepte d'être contredit, défends ton point de vue quand il est solide, et termine le plus souvent par UNE question ou un choix à faire.
 - Brainstorm : quand il le demande, propose des angles numérotés (thèse en une phrase, 2 ou 3 arguments appuyés sur le corpus, limite principale). S'il en choisit, en combine ou en conteste, retravaille-les avec lui.
 - Quand une problématique ou un plan semble arrêté, propose une formulation claire qu'il pourra coller dans le champ « Problématique » ou utiliser pour le plan.

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import Answer from "@/components/Answer";
+import PackExport from "@/components/PackExport";
 
 // Liste des conversations d'un périmètre (chapitre, module, cours, master)
 export default function ScopePage() {
@@ -121,6 +122,7 @@ export default function ScopePage() {
           </li>
         ))}
       </ul>
+      <PackExport scopeType={type} scopeId={id} />
     </main>
   );
 }

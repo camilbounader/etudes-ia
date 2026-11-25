@@ -6,6 +6,9 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import MindMap, { Refs } from "@/components/MindMap";
 import Quiz from "@/components/Quiz";
+import ExportButtons from "@/components/ExportButtons";
+import PackExport from "@/components/PackExport";
+import { deliverableHtml, DELIVERABLE_NAMES } from "@/lib/deliverableHtml";
 
 const TABS = [
   ["mindmap", "🧠 Carte mentale", "Les idées du périmètre en arbre, avec les liens entre auteurs. Environ 0,05–0,10 $."],
@@ -76,6 +79,7 @@ export default function Livrables() {
           {item && <span className="text-xs text-slate-500">Créé le {new Date(item.created_at).toLocaleString("fr-FR")} · {d.passages} passages lus</span>}
           {item && tab === "quiz" && <span className="text-xs text-amber-700">Regénérer remet la progression à zéro.</span>}
           {item && <button onClick={() => window.print()} className="px-3 py-1 rounded bg-slate-200 hover:bg-slate-300">Imprimer / PDF</button>}
+          {item && <ExportButtons small={false} getContent={() => ({ title: `${DELIVERABLE_NAMES[tab]} — ${d.scopeLabel || ""}`, html: deliverableHtml(tab, d) })} />}
           <button onClick={() => generate(tab)} disabled={!!busy} className="px-3 py-1 rounded bg-slate-900 text-white disabled:opacity-50">
             {busy === tab ? "Création… (1 à 2 min)" : item ? "Regénérer" : "Créer"}
           </button>
@@ -180,6 +184,9 @@ export default function Livrables() {
           ))}
         </div>
       )}
+      <div className="no-print pt-4">
+        <PackExport scopeType={type} scopeId={id} />
+      </div>
     </main>
   );
 }

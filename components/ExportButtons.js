@@ -16,13 +16,14 @@ export default function ExportButtons({ getContent, small = true }) {
       const c = await getContent();
       let blob;
       if (c.docx) blob = await c.docx();
+      else if (c.html && !c.segments) blob = new Blob(["\ufeff" + c.html], { type: "application/msword" });
       else {
         const { docxBlob } = await import("@/lib/docxExport");
         blob = await docxBlob({ title: c.title, subtitle: c.subtitle, segments: c.segments });
       }
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `${String(c.title || "export").replace(/[\\/:*?"<>|]/g, " ").slice(0, 80)}.docx`;
+      a.download = `${String(c.title || "export").replace(/[\\/:*?"<>|]/g, " ").slice(0, 80)}.${c.html && !c.segments && !c.docx ? "doc" : "docx"}`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     } catch (e) {
