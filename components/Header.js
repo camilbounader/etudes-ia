@@ -19,6 +19,17 @@ const LINKS = [
 export default function Header() {
   const path = usePathname();
   const [theme, setTheme] = useState("light");
+  const [offline, setOffline] = useState(false);
+  useEffect(() => {
+    const up = () => setOffline(!navigator.onLine);
+    up();
+    window.addEventListener("online", up);
+    window.addEventListener("offline", up);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", up);
+    };
+  }, []);
   useEffect(() => {
     let c = "light";
     try { c = localStorage.getItem("theme") || "light"; } catch {}
@@ -54,8 +65,13 @@ export default function Header() {
             );
           })}
         </nav>
+        {offline && (
+          <span className="ml-auto text-xs px-2 py-1 rounded bg-amber-100 text-amber-800" title="Seules les pages déjà ouvertes avec une connexion sont disponibles ; rien ne peut être généré.">
+            Hors ligne
+          </span>
+        )}
         <button onClick={nextTheme} title="Changer l'affichage (clair, sombre, nuit, auto 20 h–7 h)"
-          className="ml-auto shrink-0 text-sm px-2 py-1 rounded text-slate-700 hover:bg-slate-100">
+          className={`${offline ? "" : "ml-auto "}shrink-0 text-sm px-2 py-1 rounded text-slate-700 hover:bg-slate-100`}>
           {THEMES.find(([k]) => k === theme)?.[1] || "☀️ Clair"}
         </button>
       </div>
