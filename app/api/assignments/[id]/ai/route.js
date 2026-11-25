@@ -4,7 +4,7 @@ import { q } from "@/lib/db";
 import { searchPassages } from "@/lib/search";
 import { callClaude, callClaudeBlocks, parseJson, MODELS } from "@/lib/anthropic";
 import { diversify, toDocumentBlock, renderAnswer } from "@/lib/chat";
-import { loadAssignment, scopeOf, rulesText } from "@/lib/atelier";
+import { loadAssignment, scopeOf, rulesText, materialsText, chatText } from "@/lib/atelier";
 import { PROFILE, STYLE_CHARTER, EXAMINER_FEEDBACK } from "@/lib/writingRules";
 import { runChecks, wordsExcludingCitations } from "@/lib/checks";
 import { extractCitations, matchDocument } from "@/lib/citeParse";
@@ -80,14 +80,21 @@ ${CITE}`,
       const r = await callClaude({
         feature: "atelier : plan",
         model: MODELS.main,
-        max_tokens: 3000,
+        max_tokens: 5000,
         system: `You design the detailed outline of a Master's assignment for an international student. ${PROFILE}
 Total length: about ${target} words (excluding references), split across sections including a short introduction and conclusion.
 ${rulesText(a.rules)}
 Answer ONLY with JSON: {"thesis":"one-sentence thesis in English","sections":[{"title":"section title in English","words":number,"brief":"in French: what this section must do, key argument, which readings (by author, year) and which personal reflection to bring"}]}
 The words must add up to about ${target}. Use 4 to 8 sections. Prefer an argumentative progression (dialectical when relevant), no artificial headings if the assignment is a short essay.
 Available course readings:\n${docList}`,
-        messages: [{ role: "user", content: `ASSIGNMENT:\n${a.brief}\n\n${a.thesis ? `CHOSEN PROBLEM/ANGLE: ${a.thesis}` : ""}` }],
+        messages: [
+          {
+            role: "user",
+            content: `ASSIGNMENT:\n${a.brief}\n\n${a.thesis ? `CHOSEN PROBLEM/ANGLE: ${a.thesis}\n\n` : ""}${
+              materialsText(a, 10000) ? `CAMIL'S OWN NOTES, DRAFTS AND IDEAS (build the outline on them):\n${materialsText(a, 10000)}\n\n` : ""
+            }${chatText(a) ? `END OF OUR DISCUSSION (decisions taken there prevail):\n${chatText(a)}` : ""}`,
+          },
+        ],
       });
       const plan = parseJson(r.text);
       if (!plan?.sections?.length) throw new Error("Le plan proposé est illisible, réessaie.");

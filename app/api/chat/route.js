@@ -21,7 +21,7 @@ export async function POST(request) {
     if (!conv) return Response.json({ error: "Conversation introuvable" }, { status: 404 });
     const scope = await scopeInfo(conv.scope_type, conv.scope_id);
     const history = await q(
-      `select role, content from messages where conversation_id = $1 order by id desc limit 8`,
+      `select role, content from messages where conversation_id = $1 order by id desc limit 12`,
       [conv.id]
     );
     history.reverse();
@@ -51,23 +51,39 @@ export async function POST(request) {
       },
     ];
 
-    const { blocks, usage } = await callClaudeBlocks({
-      feature: "chat",
-      model: MODELS.main,
-      system:
-        SYSTEM_PROMPT(scope?.label || "inconnu") +
-        (oral
-          ? "\n\nMODE ORAL : la réponse sera lue à voix haute. Réponds en 150 mots maximum, phrases simples, sans titres, listes ni tableaux. Termine par une question courte pour poursuivre l'échange."
-          : ""),
-      messages,
-      max_tokens: 3000,
-    });
+    const system =
+      SYSTEM_PROMPT(scope?.label || "inconnu") +
+      (oral
+        ? "\n\nMODE ORAL : la réponse sera lue à voix haute. Réponds en 150 mots maximum, phrases simples, sans titres, listes ni tableaux. Termine par une question courte pour poursuivre l'échange."
+        : "");
+    // Réponse longue : si elle est coupée par la limite de longueur, on demande
+    // automatiquement la suite (jusqu'à 2 fois, tant qu'il reste du temps).
+    const started = Date.now();
+    let blocks = [];
+    let usage = null;
+    let truncated = false;
+    let convo = messages;
+    for (let round = 0; round < 3; round++) {
+      const r = await callClaudeBlocks({ feature: "chat", model: MODELS.main, system, messages: convo, max_tokens: oral ? 1200 : 8000 });
+      blocks = blocks.concat(r.blocks);
+      usage = usage
+        ? { ...usage, input_tokens: usage.input_tokens + r.usage.input_tokens, output_tokens: usage.output_tokens + r.usage.output_tokens }
+        : r.usage;
+      truncated = r.stop === "max_tokens";
+      if (!truncated || Date.now() - started > 150000) break;
+      const soFar = blocks.filter((b) => b.type === "text").map((b) => b.text).join("");
+      convo = [
+        ...messages,
+        { role: "assistant", content: soFar },
+        { role: "user", content: "Ta réponse a été coupée par la limite de longueur. Continue EXACTEMENT là où tu t'es arrêté (même au milieu d'une phrase), sans rien répéter ni annoncer que tu continues." },
+      ];
+    }
     const { segments, plain } = renderAnswer(blocks, passages);
 
     await q(`insert into messages (conversation_id, role, content) values ($1, 'user', $2)`, [conv.id, message]);
     const saved = await q(
       `insert into messages (conversation_id, role, content, citations) values ($1, 'assistant', $2, $3) returning id, created_at`,
-      [conv.id, plain, JSON.stringify({ segments, usage })]
+      [conv.id, plain, JSON.stringify({ segments, usage, truncated })]
     );
 
     // Titre automatique après le premier échange
@@ -87,7 +103,7 @@ export async function POST(request) {
     }
 
     return Response.json({
-      message: { id: saved[0].id, role: "assistant", content: plain, citations: { segments, usage } },
+      message: { id: saved[0].id, role: "assistant", content: plain, citations: { segments, usage, truncated } },
       title,
       passagesUsed: passages.length,
     });

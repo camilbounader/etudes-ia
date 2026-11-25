@@ -14,11 +14,14 @@ Rules:
 - Briefly describe charts, diagrams or figures in one line starting with "[Figure]".
 - Output plain text only, in the original language, no commentary.`;
 
-// POST { image: base64 JPEG } : texte d'une capture d'écran (Gemini vision)
+const NOTES_PROMPT = `Transcribe all the text in this photo or screenshot of a student's notes, draft, whiteboard or document (handwritten or typed), in its original language.
+Keep the structure (headings, bullets, arrows as "->"). Describe any diagram in one line starting with "[Schéma]". Mark unreadable words as [?]. Output plain text only, no commentary.`;
+
+// POST { image: base64 JPEG, mode?: "notes" } : texte d'une capture d'écran (Gemini vision)
 export async function POST(request) {
   const denied = await guard();
   if (denied) return denied;
-  const { image } = await request.json();
+  const { image, mode } = await request.json();
   const key = process.env.GEMINI_API_KEY;
   if (!key) return Response.json({ error: "GEMINI_API_KEY manquante" }, { status: 500 });
   const model = process.env.GEMINI_VISION_MODEL || "gemini-3.5-flash";
@@ -27,7 +30,7 @@ export async function POST(request) {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": key },
       body: JSON.stringify({
-        contents: [{ parts: [{ inline_data: { mime_type: "image/jpeg", data: image } }, { text: PROMPT }] }],
+        contents: [{ parts: [{ inline_data: { mime_type: "image/jpeg", data: image } }, { text: mode === "notes" ? NOTES_PROMPT : PROMPT }] }],
         generationConfig: { maxOutputTokens: 4000, temperature: 0 },
       }),
     });

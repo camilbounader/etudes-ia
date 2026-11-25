@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import Answer from "@/components/Answer";
 import MicButton from "@/components/MicButton";
+import ExportButtons from "@/components/ExportButtons";
 import { speak, stopSpeaking } from "@/lib/speech";
 
 const STARTERS = [
@@ -15,6 +16,12 @@ const STARTERS = [
   ["Teste-moi", "Teste-moi comme à l'examen : pose-moi une question d'analyse (pas de définition), une à la fois. Après ma réponse, corrige-moi en t'appuyant sur le corpus, puis pose la suivante."],
   ["Lien avec les autres cours", "Quels liens précis peut-on faire entre ce périmètre et les autres chapitres, modules ou cours de mon master ?"],
 ];
+
+// Derniers mots d'une réponse (sans les références) pour demander la suite
+function lastWords(text) {
+  const t = String(text || "").replace(/\s*\([^()]*\d{4}[^()]*\)/g, "").trim().split(/\s+/);
+  return t.slice(-12).join(" ");
+}
 
 export default function ChatPage() {
   const { id } = useParams();
@@ -123,6 +130,7 @@ export default function ChatPage() {
           ) : (
             <div key={m.id} className="mr-6 bg-white border rounded-xl px-4 py-3">
               <Answer message={m} />
+              <div className="mt-2 flex flex-wrap gap-2">
               <button
                 onClick={() => {
                   if (speakingId === m.id) {
@@ -133,10 +141,18 @@ export default function ChatPage() {
                     speak(m.content, { onEnd: () => setSpeakingId(null) });
                   }
                 }}
-                className="mt-2 text-xs px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200"
+                className="text-xs px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200"
               >
                 {speakingId === m.id ? "■ Arrêter" : "🔊 Écouter"}
               </button>
+              <ExportButtons getContent={() => ({ title: conv.title, subtitle: scope?.label, segments: m.citations?.segments || [{ text: m.content, cites: [] }] })} />
+              {m.citations?.truncated && (
+                <button onClick={() => send(`Continue exactement là où ta réponse précédente s'est arrêtée (après : « ${lastWords(m.content)} »), sans rien répéter. Si la partie en cours est finie, passe à la suivante.`)}
+                  disabled={busy} className="text-xs px-2 py-0.5 rounded bg-amber-500 text-white">
+                  Réponse coupée : continuer
+                </button>
+              )}
+              </div>
             </div>
           )
         )}

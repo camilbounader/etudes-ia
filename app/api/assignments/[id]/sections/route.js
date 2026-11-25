@@ -14,9 +14,9 @@ export async function PUT(request, { params }) {
   for (const s of sections) {
     const prev = old.find((o) => o.title.trim().toLowerCase() === String(s.title).trim().toLowerCase());
     await q(
-      `insert into assignment_sections (assignment_id, position, title, brief, words, model, my_text, critique)
-       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [Number(id), pos++, s.title, s.brief || "", s.words ? Number(s.words) : null, prev?.model ? JSON.stringify(prev.model) : null, prev?.my_text || null, prev?.critique ? JSON.stringify(prev.critique) : null]
+      `insert into assignment_sections (assignment_id, position, title, brief, words, model, my_text, critique, text_fr)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [Number(id), pos++, s.title, s.brief || "", s.words ? Number(s.words) : null, prev?.model ? JSON.stringify(prev.model) : null, prev?.my_text || null, prev?.critique ? JSON.stringify(prev.critique) : null, prev?.text_fr || null]
     );
   }
   await q(`update assignments set updated_at = now() where id = $1`, [Number(id)]);
