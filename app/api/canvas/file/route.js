@@ -12,7 +12,8 @@ export async function POST(request) {
   const { fileId } = await request.json();
   try {
     const meta = await getFile(fileId);
-    const name = meta.display_name || meta.filename || `canvas-${fileId}.pdf`;
+    const name = meta.display_name || meta.filename || `canvas-${fileId}`;
+    if (meta.size > 1024 * 1024 * 1024) throw new Error("fichier de plus de 1 Go : télécharge-le depuis Canvas et importe-le à la main");
     // l'adresse de téléchargement contient déjà une clé de vérification :
     // pas d'en-tête Authorization (il casserait la redirection vers le stockage)
     const res = await fetch(meta.url);
@@ -21,7 +22,7 @@ export async function POST(request) {
     const blob = await put(`canvas/${name}`, buf, {
       access: "public",
       addRandomSuffix: true,
-      contentType: "application/pdf",
+      contentType: meta["content-type"] || "application/octet-stream",
     });
     return Response.json({ blobUrl: blob.url, name, size: buf.length });
   } catch (err) {

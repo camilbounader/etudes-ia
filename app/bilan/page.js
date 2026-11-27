@@ -80,7 +80,7 @@ export default function Bilan() {
         for (const c of m.chapters) {
           const items = [];
           if (!c.pageImported) items.push({ type: "page", label: "texte de la page Canvas" });
-          for (const f of c.files) if (!f.imported) items.push({ type: "pdf", label: `PDF : ${f.name}`, id: f.id, name: f.name });
+          for (const f of c.files) if (!f.imported) items.push({ type: "pdf", label: `fichier : ${f.name}`, id: f.id, name: f.name });
           for (const v of c.videos || []) if (!v.imported) items.push({ type: "video", label: `vidéo : ${v.title}` });
           for (const l of c.webLinks || []) if (!l.imported) items.push({ type: "link", label: l.title, url: l.url, cls: linkClass(l) });
           if (c.existingId) miss[c.existingId] = items;
@@ -101,8 +101,9 @@ export default function Bilan() {
       if (it.type === "pdf") {
         const { blobUrl } = await api("/api/canvas/file", { method: "POST", body: { fileId: it.id } });
         const blob = await (await fetch(blobUrl)).blob();
-        await importPdf({ source: blob, name: it.name, chapterId, kind: "reading", blobUrl, canvasFileId: it.id, say });
-        say(`✓ ${it.name} importé`);
+        const { importAny } = await import("@/lib/importer");
+        if (/\.pdf$/i.test(it.name)) await importPdf({ source: blob, name: it.name, chapterId, kind: "reading", blobUrl, canvasFileId: it.id, say });
+        else await importAny({ file: new File([blob], it.name), name: it.name, chapterId, blobUrl, canvasFileId: it.id, say });
       } else {
         const r = await api("/api/canvas/web", { method: "POST", body: { chapterId, url: it.url, title: it.label } });
         if (r.pdf) {
@@ -117,6 +118,31 @@ export default function Bilan() {
     } catch (e) {
       say(`✗ ${it.label} : ${e.message}`);
     }
+    setBusy("");
+  }
+
+  // Importe d'un coup les fichiers Canvas et les lectures probables manquants d'un cours
+  async function importAll(chapterIds) {
+    const jobs = [];
+    for (const cid of chapterIds) for (const it of canvas[cid] || []) if (it.type === "pdf" || (it.type === "link" && it.cls === "academic")) jobs.push([cid, it]);
+    if (!jobs.length) return say("Rien à importer automatiquement pour ce cours.");
+    for (const [cid, it] of jobs) await importItem(cid, it);
+    say(`Terminé : ${jobs.length} élément(s) traités. Les lectures payantes (🔒) sont à télécharger via la bibliothèque UiT.`);
+  }
+
+  // Transcrit toutes les vidéos YouTube pas encore transcrites
+  async function transcribeYoutube() {
+    const list = data.pendingYoutube || [];
+    for (const [n, v] of list.entries()) {
+      setBusy(`Transcription YouTube ${n + 1}/${list.length} : ${v.title}…`);
+      try {
+        const r = await api(`/api/documents/${v.id}/auto-transcript`, { method: "POST" });
+        say(`✓ ${v.title} (${r.chunks} extraits)`);
+      } catch (e) {
+        say(`✗ ${v.title} : ${e.message}`);
+      }
+    }
+    await load();
     setBusy("");
   }
 
@@ -189,6 +215,12 @@ export default function Bilan() {
         </span>
       </div>
 
+      {(data.pendingYoutube || []).length > 0 && (
+        <div className="bg-white border rounded-lg p-3 flex items-center justify-between gap-4 text-sm">
+          <span>{data.pendingYoutube.length} vidéo(s) YouTube pas encore transcrite(s).</span>
+          <button onClick={transcribeYoutube} disabled={!!busy} className="px-3 py-1 rounded bg-slate-900 text-white disabled:opacity-50">Tout transcrire</button>
+        </div>
+      )}
       {data.badRefs.length > 0 && (
         <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 flex items-center justify-between gap-4">
           <span>{data.badRefs.length} référence(s) mal reconnue(s) (nom de fichier au lieu de « Auteur, année »).</span>
@@ -230,12 +262,20 @@ export default function Bilan() {
               {c.semester ? `S${c.semester} · ` : ""}
               {c.code} {c.title}
             </h2>
-            {c.canvasId && (
-              <button onClick={() => compareCanvas(c.canvasId, c.code || c.title)} disabled={!!busy}
-                className="text-sm px-3 py-1 rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-50">
-                Comparer avec Canvas
-              </button>
-            )}
+            <span className="flex gap-2">
+              {c.canvasId && (
+                <button onClick={() => compareCanvas(c.canvasId, c.code || c.title)} disabled={!!busy}
+                  className="text-sm px-3 py-1 rounded bg-slate-200 hover:bg-slate-300 disabled:opacity-50">
+                  Comparer avec Canvas
+                </button>
+              )}
+              {c.modules.some((m) => m.chapters.some((r) => (canvas[r.chapter_id] || []).some((x) => x.type === "pdf" || x.cls === "academic"))) && (
+                <button onClick={async () => { await importAll(c.modules.flatMap((m) => m.chapters.map((r) => r.chapter_id))); }} disabled={!!busy}
+                  className="text-sm px-3 py-1 rounded bg-slate-900 text-white disabled:opacity-50">
+                  Tout importer (fichiers et lectures)
+                </button>
+              )}
+            </span>
           </div>
           <table className="w-full text-sm">
             <thead className="text-left text-slate-500 text-xs">

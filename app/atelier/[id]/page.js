@@ -576,6 +576,7 @@ export default function AtelierPage() {
       <input defaultValue={a.title} onBlur={(e) => e.target.value !== a.title && patch({ title: e.target.value })}
         className="text-2xl font-semibold bg-transparent w-full" />
 
+      {rules.focus && <p className="text-sm bg-blue-50 border border-blue-200 rounded p-2"><strong>Périmètre :</strong> {rules.focus} (le reste du sujet est ignoré)</p>}
       {rules.ai_level && (
         <div className={`rounded-lg p-3 text-sm border ${rules.ai_level <= 2 ? "bg-amber-50 border-amber-300" : "bg-blue-50 border-blue-200"}`}>
           <strong>Maximum autorisé par le sujet : niveau {rules.ai_level}.</strong> {AI_LEVELS[rules.ai_level]}
@@ -641,6 +642,10 @@ export default function AtelierPage() {
               </select>
             </label>
             <label className="flex items-center gap-2 mt-5"><input type="checkbox" checked={!!rules.page_numbers_required} onChange={(e) => setRule("page_numbers_required", e.target.checked)} /> Page dans chaque citation</label>
+            <label className="sm:col-span-3">Périmètre de cet atelier, si le sujet contient plusieurs questions (ex. « Question 1, Topic A uniquement »)
+              <input defaultValue={rules.focus || ""} onBlur={(e) => e.target.value !== (rules.focus || "") && setRule("focus", e.target.value.trim() || null)}
+                placeholder="vide = tout le sujet" className="border rounded px-2 py-1 w-full" />
+            </label>
             <label className="sm:col-span-3">Date limite / format <input defaultValue={[rules.deadline, rules.format_notes].filter(Boolean).join(" · ")} onBlur={(e) => setRule("format_notes", e.target.value)} className="border rounded px-2 py-1 w-full" /></label>
           </div>
           {a.analysis && <div className="bg-white border rounded-lg p-4"><Answer message={{ citations: a.analysis }} /></div>}

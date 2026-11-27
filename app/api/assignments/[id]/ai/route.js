@@ -47,7 +47,7 @@ export async function POST(request, { params }) {
 En français, sections ## : « Ce qui est demandé » (reformulation précise, verbes de consigne), « Critères et attentes » (ce qui sera évalué, d'après le sujet), « Pièges à éviter » (d'après le sujet et les retours de l'examinateur), « Lectures du cours directement utiles » (citées), « Questions à clarifier » (si le sujet est ambigu).
 ${EXAMINER_FEEDBACK}
 ${CITE}`,
-        messages: [{ role: "user", content: [...passages.map(toDocumentBlock), { type: "text", text: `SUJET :\n${a.brief}` }] }],
+        messages: [{ role: "user", content: [...passages.map(toDocumentBlock), { type: "text", text: `SUJET :\n${a.brief}${rules.focus ? `\n\nPÉRIMÈTRE DE CET ATELIER (analyse seulement cette partie) : ${rules.focus}` : ""}` }] }],
       });
       const analysis = { segments: renderAnswer(blocks, passages).segments, at: new Date().toISOString() };
       await q(`update assignments set rules = $1, analysis = $2, updated_at = now() where id = $3`, [JSON.stringify(rules), JSON.stringify(analysis), a.id]);

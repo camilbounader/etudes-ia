@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { importPdf, importScreens } from "@/lib/importer";
+import { importPdf, importScreens, importAny } from "@/lib/importer";
 import { analyzeFile, importNotes } from "@/lib/bulkClient";
 
 const KINDS = {
@@ -62,7 +62,8 @@ export default function BulkImport() {
         continue;
       }
       const isPdf = /\.pdf$/i.test(file.name);
-      if (row.kind === "notes" && !isPdf) await importNotes({ file, chapterId: row.chapter, say });
+      if (/\.(pptx|mp3|m4a|wav|aac|mp4|mov|webm)$/i.test(file.name)) await importAny({ file, chapterId: row.chapter, say });
+      else if (row.kind === "notes" && !isPdf) await importNotes({ file, chapterId: row.chapter, say });
       else if (row.kind === "screens" || !isPdf) await importScreens({ file, chapterId: row.chapter, say });
       else await importPdf({ source: file, name: file.name, chapterId: row.chapter, kind: row.kind === "notes" ? "notes" : row.kind, say });
     }

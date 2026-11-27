@@ -51,6 +51,16 @@ export default function Ateliers() {
               {a.code || (a.course_id ? a.course_title : "mémoire / master")}
               {a.rules?.words_target ? ` · ${a.rules.words_target} mots` : ""}
               {a.rules?.ai_level ? ` · IA niveau ${a.rules.ai_level}` : ""} · {a.sections} partie(s)
+              <button
+                onClick={async () => {
+                  if (!confirm(`Supprimer définitivement l'atelier « ${a.title} » (sujet, discussion, plan, textes) ?\nPense à télécharger ton Word avant si besoin.`)) return;
+                  await api(`/api/assignments/${a.id}`, { method: "DELETE" });
+                  setList((l) => l.filter((x) => x.id !== a.id));
+                }}
+                className="ml-3 text-slate-400 hover:text-red-600"
+              >
+                supprimer
+              </button>
             </span>
           </li>
         ))}

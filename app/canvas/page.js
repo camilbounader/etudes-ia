@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { importPdf } from "@/lib/importer";
+import { importPdf, importAny } from "@/lib/importer";
 
 function size(n) {
   if (!n) return "";
@@ -132,7 +132,8 @@ export default function CanvasImport() {
               const res = await fetch(blobUrl);
               if (!res.ok) throw new Error(`lecture du PDF stocké impossible (${res.status})`);
               const blob = await res.blob();
-              await importPdf({ source: blob, name: f.name, chapterId, kind: "reading", blobUrl, canvasFileId: f.id, say });
+              if (/\.pdf$/i.test(f.name) || f.ext === "pdf") await importPdf({ source: blob, name: f.name, chapterId, kind: "reading", blobUrl, canvasFileId: f.id, say });
+              else await importAny({ file: new File([blob], f.name), name: f.name, chapterId, blobUrl, canvasFileId: f.id, say });
             } catch (e) {
               say(`✗ ${f.name} : ${e.message}`);
             }

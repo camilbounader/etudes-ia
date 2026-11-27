@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { importPdf, importScreens } from "@/lib/importer";
+import { importPdf, importScreens, importAny, IMPORT_ACCEPT } from "@/lib/importer";
 import Sheets from "@/components/Sheets";
 import Works from "@/components/Works";
 import ChapterNav from "@/components/ChapterNav";
@@ -210,7 +210,7 @@ export default function ChapterPage() {
     setLog([]);
     for (const file of files) {
       if (/\.pdf$/i.test(file.name)) await importPdf({ source: file, name: file.name, chapterId: id, kind: kind === "screens" ? "slides" : kind, say });
-      else await importScreens({ file, chapterId: id, say });
+      else await importAny({ file, chapterId: id, kind, say });
       await load();
     }
     setBusy(false);
@@ -247,7 +247,7 @@ export default function ChapterPage() {
       <section className="bg-white border rounded-xl p-4 space-y-3">
         <h2 className="font-semibold">Importer des documents</h2>
         <p className="text-sm text-slate-500">
-          PDF de lectures ou de diapos ; captures d'écran (PNG, JPG) ou Word de captures, lus automatiquement par Gemini.
+          PDF de lectures ou de diapos, PowerPoint (.pptx, y compris avec commentaire audio : la voix est transcrite), enregistrements audio ou vidéo (transcrits), captures d'écran ou Word de captures (lus par Gemini).
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <select value={kind} onChange={(e) => setKind(e.target.value)} className="border rounded px-2 py-1">
@@ -257,7 +257,7 @@ export default function ChapterPage() {
           </select>
           <input
             type="file"
-            accept=".pdf,.png,.jpg,.jpeg,.webp,.docx"
+            accept={IMPORT_ACCEPT}
             multiple
             disabled={busy}
             onChange={(e) => importFiles([...e.target.files])}

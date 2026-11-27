@@ -20,7 +20,9 @@ async function pool(items, n, fn) {
   return out;
 }
 
-const isPdf = (f) => /pdf/i.test(f?.["content-type"] || "") || /\.pdf$/i.test(f?.display_name || f?.filename || "");
+// fichiers importables : PDF, PowerPoint, Word, images, audio et vidéo
+const IMPORTABLE = /\.(pdf|pptx|ppt|docx|png|jpe?g|webp|mp3|m4a|wav|aac|mp4|mov|webm)$/i;
+const isImportable = (f) => /pdf/i.test(f?.["content-type"] || "") || IMPORTABLE.test(f?.display_name || f?.filename || "");
 
 // GET : plan d'import d'un cours Canvas
 // modules > chapitres (pages Canvas) > PDF liés, avec ce qui est déjà importé.
@@ -95,8 +97,9 @@ export async function GET(request, { params }) {
 
     const fileInfo = (fid) => {
       const f = meta.get(fid);
-      if (!f || f.error || !isPdf(f)) return null;
-      return { id: fid, name: f.display_name || f.filename, size: f.size, imported: importedFiles.has(fid) };
+      if (!f || f.error || !isImportable(f)) return null;
+      const name = f.display_name || f.filename;
+      return { id: fid, name, size: f.size, ext: String(name).toLowerCase().split(".").pop(), imported: importedFiles.has(fid) };
     };
 
     const result = plan.map((m) => {
@@ -117,7 +120,11 @@ export async function GET(request, { params }) {
             files: c.fileIds.map(fileInfo).filter(Boolean),
             links: c.links.filter((l) => !c.videos.some((v) => l.url && l.url.includes(v.key.split(":")[1]))),
             videos: c.videos.map((v) => ({ ...v, imported: importedVideos.has(`video:${v.key}`) })),
-            webLinks: (c.webLinks || []).map((l) => ({ ...l, imported: importedWeb.has(l.url) })),
+            // liens dans le texte de la page + liens « URL externe » du module
+            webLinks: [...(c.webLinks || []), ...c.links.filter((l) => l.url && !/instructure|panopto|youtube|youtu\.be|ted\.com/i.test(l.url) && !(c.webLinks || []).some((w) => w.url === l.url))].map((l) => ({
+              ...l,
+              imported: importedWeb.has(l.url),
+            })),
           };
         }),
         looseFiles: m.looseFiles.map(fileInfo).filter(Boolean),

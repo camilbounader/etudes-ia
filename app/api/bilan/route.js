@@ -42,5 +42,8 @@ export async function GET() {
   const badRefs = await q(
     `select d.id, d.title, d.intext, d.reference, d.chapter_id, d.metadata->>'error' as error from documents d where ${BAD_REF_SQL} order by d.id`
   );
-  return Response.json({ rows, badRefs });
+  const pendingYoutube = await q(
+    `select id, title from documents where kind = 'video' and status <> 'ready' and (blob_url like '%youtube.com%' or blob_url like '%youtu.be%') order by id`
+  );
+  return Response.json({ rows, badRefs, pendingYoutube });
 }
