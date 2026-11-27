@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import Answer from "@/components/Answer";
 import MicButton from "@/components/MicButton";
 import AutoText from "@/components/AutoText";
+import SafeBoundary from "@/components/SafeBoundary";
 import { runChecks, wordsExcludingCitations } from "@/lib/checks";
 import { segmentsToMarked } from "@/lib/marked";
 import { AI_LEVELS, AI_DECLARATIONS } from "@/lib/atelierText";
@@ -143,26 +144,41 @@ function Discussion({ id, a, setAssignment }) {
     setAttachStatus("");
     if (names.length) setInput((t) => `${t ? t + "\n" : ""}J'ai ajouté à mes matériaux : ${names.map((n) => `« ${n} »`).join(", ")}. `);
   }
-  const [input, setInput] = useState("");
+  const draftKey = `atelier-draft-${id}`;
+  const [input, setInputRaw] = useState(() => {
+    try { return localStorage.getItem(draftKey) || ""; } catch { return ""; }
+  });
+  const setInput = (v) =>
+    setInputRaw((prev) => {
+      const next = typeof v === "function" ? v(prev) : v;
+      try { next ? localStorage.setItem(draftKey, next) : localStorage.removeItem(draftKey); } catch {}
+      return next;
+    });
   const [busy, setBusy] = useState(false);
   const [thesis, setThesis] = useState(a.thesis || "");
   const bottom = useRef(null);
-  useEffect(() => bottom.current?.scrollIntoView({ behavior: "smooth" }), [chat, busy]);
+  useEffect(() => {
+    try {
+      bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    } catch {}
+  }, [chat, busy]);
 
   async function send(text) {
     const t = (text ?? input).trim();
     if (!t || busy) return;
-    setInput("");
+    if (thesis !== (a.thesis || "")) await saveThesis();
+    setInputRaw("");
     setChat((c) => [...c, { role: "user", content: t }]);
     setBusy(true);
     try {
       const r = await api(`/api/assignments/${id}/chat`, { method: "POST", body: { message: t } });
-      setChat(r.chat);
+      setChat(Array.isArray(r.chat) ? r.chat : []);
       setAssignment({ chat: r.chat });
+      if (!text) setInput("");
     } catch (e) {
       alert(e.message);
       setChat((c) => c.slice(0, -1));
-      setInput(t);
+      setInputRaw(t);
     }
     setBusy(false);
   }
@@ -196,7 +212,9 @@ function Discussion({ id, a, setAssignment }) {
             <div key={i} className="ml-12 bg-slate-900 text-white rounded-xl px-4 py-3 whitespace-pre-wrap text-sm">{m.content}</div>
           ) : (
             <div key={i} className="mr-6 bg-white border rounded-xl px-4 py-3">
-              <Answer message={{ content: m.content, citations: { segments: m.segments } }} />
+              <SafeBoundary where="atelier : réponse" fallback={<div className="whitespace-pre-wrap text-sm">{m.content}</div>}>
+                <Answer message={{ content: m.content, citations: { segments: m.segments } }} />
+              </SafeBoundary>
               <div className="flex flex-wrap gap-2 mt-2">
                 <button onClick={() => navigator.clipboard?.writeText(plainOf({ segments: m.segments }))} className="text-xs px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200">Copier</button>
                 <button onClick={() => { setInput(`À propos de ta réponse : `); }} className="text-xs px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200">Répondre / contester</button>
@@ -426,7 +444,15 @@ function finalParts(sections, lang) {
 export default function AtelierPage() {
   const { id } = useParams();
   const [d, setD] = useState(null);
-  const [step, setStep] = useState(0);
+  const [step, setStepRaw] = useState(0);
+  const setStep = (n) => {
+    setStepRaw(n);
+    try { history.replaceState(null, "", `#etape-${n + 1}`); } catch {}
+  };
+  useEffect(() => {
+    const m = (location.hash || "").match(/etape-(\d+)/);
+    if (m) setStepRaw(Math.max(0, Number(m[1]) - 1));
+  }, []);
   const [busy, setBusy] = useState("");
   const [planDraft, setPlanDraft] = useState(null);
   const [declaration, setDeclaration] = useState("");
@@ -622,11 +648,11 @@ export default function AtelierPage() {
         </section>
       )}
 
-      {step === 2 && <Materials id={id} materials={a.materials || []} setMaterials={(m) => setAssignment({ materials: m })} />}
+      {step === 2 && <SafeBoundary where="atelier : matériaux"><Materials id={id} materials={a.materials || []} setMaterials={(m) => setAssignment({ materials: m })} /></SafeBoundary>}
 
-      {step === 3 && <Literature id={id} a={a} setAssignment={setAssignment} />}
+      {step === 3 && <SafeBoundary where="atelier : littérature"><Literature id={id} a={a} setAssignment={setAssignment} /></SafeBoundary>}
 
-      {step === 1 && <Discussion key={a.id} id={id} a={a} setAssignment={setAssignment} />}
+      {step === 1 && <SafeBoundary where="atelier : discussion"><Discussion key={a.id} id={id} a={a} setAssignment={setAssignment} /></SafeBoundary>}
 
       {step === 4 && (
         <section className="space-y-3">

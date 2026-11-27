@@ -8,6 +8,7 @@ import Answer from "@/components/Answer";
 import MicButton from "@/components/MicButton";
 import ExportButtons from "@/components/ExportButtons";
 import AutoText from "@/components/AutoText";
+import SafeBoundary from "@/components/SafeBoundary";
 import { fileToText, FILE_ACCEPT } from "@/lib/fileText";
 import { speak, stopSpeaking } from "@/lib/speech";
 
@@ -156,7 +157,9 @@ export default function ChatPage() {
             </div>
           ) : (
             <div key={m.id} className="mr-6 bg-white border rounded-xl px-4 py-3">
-              <Answer message={m} />
+              <SafeBoundary where="chat : réponse" fallback={<div className="whitespace-pre-wrap">{m.content}</div>}>
+                <Answer message={m} />
+              </SafeBoundary>
               <div className="mt-2 flex flex-wrap gap-2">
               <button
                 onClick={() => {

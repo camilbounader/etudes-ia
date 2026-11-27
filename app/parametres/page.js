@@ -15,6 +15,10 @@ export default function Parametres() {
   const [rootName, setRootName] = useState("");
   const [profile, setProfile] = useState("");
   const [profileSaved, setProfileSaved] = useState(true);
+  const [errors, setErrors] = useState([]);
+  useEffect(() => {
+    api("/api/client-error").then((d) => setErrors(d.errors || [])).catch(() => {});
+  }, []);
   useEffect(() => {
     api("/api/settings?key=profile").then((d) => setProfile(d.value?.text || DEFAULT_PROFILE)).catch(() => setProfile(DEFAULT_PROFILE));
   }, []);
@@ -141,6 +145,22 @@ export default function Parametres() {
           </div>
         )}
       </section>
+
+      {errors.length > 0 && (
+        <details className="bg-white border rounded-xl p-4 text-sm">
+          <summary className="cursor-pointer font-semibold">Erreurs récentes ({errors.length}) — à m'envoyer en cas de problème</summary>
+          <ul className="mt-2 space-y-2">
+            {errors.map((e, i) => (
+              <li key={i} className="border-t pt-2">
+                <p className="text-xs text-slate-500">{new Date(e.at).toLocaleString("fr-FR")} · {e.where} · {e.url}</p>
+                <p className="text-red-700">{e.message}</p>
+                {e.stack && <pre className="text-[11px] whitespace-pre-wrap max-h-32 overflow-auto text-slate-500">{e.stack.slice(0, 600)}</pre>}
+              </li>
+            ))}
+          </ul>
+          <button onClick={async () => { await api("/api/client-error", { method: "DELETE" }); setErrors([]); }} className="mt-2 text-xs text-slate-500 underline">effacer</button>
+        </details>
+      )}
 
       <section className="bg-white/90 border rounded-xl p-4 space-y-4">
         <h2 className="font-semibold">Photos de fond</h2>
