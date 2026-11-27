@@ -16,6 +16,21 @@ export default function Parametres() {
   const [profile, setProfile] = useState("");
   const [profileSaved, setProfileSaved] = useState(true);
   const [errors, setErrors] = useState([]);
+  const [storage, setStorage] = useState(null);
+  async function loadStorage() {
+    setStorage({ loading: true });
+    try {
+      setStorage(await api("/api/storage"));
+    } catch (e) {
+      setStorage({ error: e.message });
+    }
+  }
+  async function freeBlob(b) {
+    const what = b.doc ? `le fichier d'origine de « ${b.doc.title} » (le texte reste dans l'appli, seul le lien vers le fichier disparaît)` : `le fichier « ${b.path} » (rattaché à aucun document)`;
+    if (!confirm(`Supprimer ${what} ?`)) return;
+    await api("/api/storage", { method: "DELETE", body: { url: b.url } });
+    loadStorage();
+  }
   useEffect(() => {
     api("/api/client-error").then((d) => setErrors(d.errors || [])).catch(() => {});
   }, []);
@@ -142,6 +157,36 @@ export default function Parametres() {
               <button onClick={async () => { if (confirm("Tout renvoyer dans un nouveau dossier Drive ? (l'ancien reste, à supprimer à la main)")) { await api("/api/google/drive", { method: "PUT", body: { reset: true } }); loadGoogle(); } }}
                 className="text-xs text-slate-500 underline">Tout renvoyer depuis zéro</button>
             </div>
+          </div>
+        )}
+      </section>
+
+      <section className="bg-white border rounded-xl p-4 space-y-2 text-sm">
+        <h2 className="font-semibold">Stockage des fichiers (Vercel Blob, 1 Go gratuit)</h2>
+        <p className="text-slate-600">
+          Les PDF sont gardés pour les liens « p. X » et les figures. Si le stockage est plein, supprime les plus gros fichiers d'origine :
+          le texte, les passages et les références restent dans l'appli. Tes fichiers restent aussi dans Google Drive s'ils y ont été copiés.
+        </p>
+        <button onClick={loadStorage} className="px-3 py-1.5 rounded bg-slate-200 hover:bg-slate-300">Voir l'occupation</button>
+        {storage?.loading && <p>Calcul…</p>}
+        {storage?.error && <p className="text-red-700">{storage.error}</p>}
+        {storage?.total !== undefined && (
+          <div className="space-y-1">
+            <p>
+              <strong>{(storage.total / 1e6).toFixed(0)} Mo</strong> utilisés sur {(storage.limit / 1e6).toFixed(0)} Mo ({storage.count} fichiers)
+              {storage.total > storage.limit && <span className="text-red-700"> : plein, supprime des fichiers ci-dessous</span>}
+            </p>
+            <ul className="max-h-80 overflow-auto">
+              {storage.largest.map((b) => (
+                <li key={b.url} className="flex justify-between gap-3 border-t py-1">
+                  <span className="truncate">{b.doc ? b.doc.title : <em>{b.path} (fichier orphelin)</em>}</span>
+                  <span className="flex gap-3 shrink-0">
+                    {(b.size / 1e6).toFixed(1)} Mo
+                    <button onClick={() => freeBlob(b)} className="text-red-700 hover:underline">supprimer l'original</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </section>

@@ -13,7 +13,11 @@ export async function POST(request) {
   try {
     const meta = await getFile(fileId);
     const name = meta.display_name || meta.filename || `canvas-${fileId}`;
-    if (meta.size > 1024 * 1024 * 1024) throw new Error("fichier de plus de 1 Go : télécharge-le depuis Canvas et importe-le à la main");
+    // gros PowerPoint commentés et vidéos : mieux vaut passer par l'ordinateur (lecture dans
+    // le navigateur, seul le son part temporairement dans le stockage de 1 Go)
+    if (meta.size > 40 * 1024 * 1024 && !/\.pdf$/i.test(name)) {
+      throw new Error(`fichier lourd (${Math.round(meta.size / 1e6)} Mo) : télécharge-le depuis Canvas sur ton ordinateur, puis dépose-le dans le chapitre`);
+    }
     // l'adresse de téléchargement contient déjà une clé de vérification :
     // pas d'en-tête Authorization (il casserait la redirection vers le stockage)
     const res = await fetch(meta.url);
