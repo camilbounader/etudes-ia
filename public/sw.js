@@ -1,8 +1,8 @@
 // Service worker : appli installable + lecture hors ligne des pages déjà ouvertes.
 // Stratégie « réseau d'abord » : en ligne, tout vient du serveur (toujours à jour) ;
 // hors ligne, on ressert la dernière version enregistrée.
-const CACHE = "etudes-v2";
-const SKIP = ["/api/google", "/api/cron", "/api/login", "/api/blob-upload", "/api/pack", "/login"];
+const CACHE = "etudes-v3";
+const SKIP = ["/api/google", "/api/cron", "/api/login", "/api/blob-upload", "/api/pack", "/api/files", "/login"];
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) =>

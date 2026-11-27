@@ -1,4 +1,5 @@
 import { del } from "@vercel/blob";
+import { driveIdOf, deleteFile } from "@/lib/fileStore";
 import { guard } from "@/lib/auth";
 import { q } from "@/lib/db";
 import { detectMetadata } from "@/lib/metadata";
@@ -83,7 +84,9 @@ export async function DELETE(request, { params }) {
   const rows = await q(`delete from documents where id = $1 returning blob_url`, [Number(id)]);
   if (rows[0]?.blob_url) {
     try {
-      await del(rows[0].blob_url);
+      const driveId = driveIdOf(rows[0].blob_url);
+      if (driveId) await deleteFile(driveId);
+      else if (/blob\.vercel-storage\.com/.test(rows[0].blob_url)) await del(rows[0].blob_url);
     } catch {}
   }
   return Response.json({ ok: true });

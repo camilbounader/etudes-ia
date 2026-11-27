@@ -99,15 +99,17 @@ export default function Bilan() {
     try {
       const { importPdf } = await import("@/lib/importer");
       if (it.type === "pdf") {
-        const { blobUrl } = await api("/api/canvas/file", { method: "POST", body: { fileId: it.id } });
-        const blob = await (await fetch(blobUrl)).blob();
+        const { blobUrl, driveId } = await api("/api/canvas/file", { method: "POST", body: { fileId: it.id } });
+        const { readFile } = await import("@/lib/fileClient");
+        const blob = await readFile(driveId);
         const { importAny } = await import("@/lib/importer");
         if (/\.pdf$/i.test(it.name)) await importPdf({ source: blob, name: it.name, chapterId, kind: "reading", blobUrl, canvasFileId: it.id, say });
         else await importAny({ file: new File([blob], it.name), name: it.name, chapterId, blobUrl, canvasFileId: it.id, say });
       } else {
         const r = await api("/api/canvas/web", { method: "POST", body: { chapterId, url: it.url, title: it.label } });
         if (r.pdf) {
-          const blob = await (await fetch(r.blobUrl)).blob();
+          const { readFile } = await import("@/lib/fileClient");
+          const blob = await readFile(r.driveId);
           await importPdf({ source: blob, name: r.name, chapterId, kind: "reading", blobUrl: r.blobUrl, say });
           say(`✓ ${it.label} : texte intégral gratuit trouvé et importé`);
         } else if (r.skipped) say(`${r.paywalled ? "🔒" : "✗"} ${it.label} : ${r.skipped}`);

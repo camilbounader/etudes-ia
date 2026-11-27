@@ -1,4 +1,4 @@
-import { put } from "@vercel/blob";
+import { storeBuffer } from "@/lib/fileStore";
 import { guard } from "@/lib/auth";
 import { getFile } from "@/lib/canvas";
 
@@ -23,12 +23,8 @@ export async function POST(request) {
     const res = await fetch(meta.url);
     if (!res.ok) throw new Error(`Téléchargement Canvas impossible (${res.status})`);
     const buf = Buffer.from(await res.arrayBuffer());
-    const blob = await put(`canvas/${name}`, buf, {
-      access: "public",
-      addRandomSuffix: true,
-      contentType: meta["content-type"] || "application/octet-stream",
-    });
-    return Response.json({ blobUrl: blob.url, name, size: buf.length });
+    const stored = await storeBuffer(buf, name, meta["content-type"] || "application/octet-stream");
+    return Response.json({ blobUrl: stored.url, driveId: stored.id, name, size: buf.length });
   } catch (err) {
     return Response.json({ error: String(err.message || err) }, { status: 500 });
   }

@@ -1,4 +1,4 @@
-import { put } from "@vercel/blob";
+import { storeBuffer } from "@/lib/fileStore";
 import { guard } from "@/lib/auth";
 import { ensureSchema } from "@/lib/schema";
 import { q, vec } from "@/lib/db";
@@ -48,8 +48,8 @@ export async function POST(request) {
     if (/pdf/i.test(type) || /\.pdf($|\?)/i.test(res.url)) {
       const buf = Buffer.from(await res.arrayBuffer());
       const name = (decodeURIComponent(res.url.split("/").pop().split("?")[0]) || "document") .replace(/\.pdf$/i, "") + ".pdf";
-      const blob = await put(`web/${name}`, buf, { access: "public", addRandomSuffix: true, contentType: "application/pdf" });
-      return Response.json({ ok: true, pdf: true, blobUrl: blob.url, name });
+      const stored = await storeBuffer(buf, name, "application/pdf");
+      return Response.json({ ok: true, pdf: true, blobUrl: stored.url, driveId: stored.id, name });
     }
     if (!/html/i.test(type)) return Response.json({ ok: true, skipped: `type non pris en charge (${type.split(";")[0]})` });
 

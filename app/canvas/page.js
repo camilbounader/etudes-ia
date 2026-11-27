@@ -117,8 +117,8 @@ export default function CanvasImport() {
               const r = await api("/api/canvas/web", { method: "POST", body: { chapterId, url: l.url, title: l.title } });
               if (r.skipped) say(`  ignoré : ${r.skipped}`);
               else if (r.pdf) {
-                const res = await fetch(r.blobUrl);
-                await importPdf({ source: await res.blob(), name: r.name, chapterId, kind: "reading", blobUrl: r.blobUrl, say });
+                const { readFile } = await import("@/lib/fileClient");
+                await importPdf({ source: await readFile(r.driveId), name: r.name, chapterId, kind: "reading", blobUrl: r.blobUrl, say });
               } else say(`✓ Page web « ${l.title} » (${r.intext}, ${r.chunks} passages)`);
             } catch (e) {
               say(`✗ Lien « ${l.title} » : ${e.message}`);
@@ -128,10 +128,9 @@ export default function CanvasImport() {
             if (!sel[`file:${f.id}`]) continue;
             try {
               say(`${f.name} : récupération depuis Canvas…`);
-              const { blobUrl } = await api("/api/canvas/file", { method: "POST", body: { fileId: f.id } });
-              const res = await fetch(blobUrl);
-              if (!res.ok) throw new Error(`lecture du PDF stocké impossible (${res.status})`);
-              const blob = await res.blob();
+              const { blobUrl, driveId } = await api("/api/canvas/file", { method: "POST", body: { fileId: f.id } });
+              const { readFile } = await import("@/lib/fileClient");
+              const blob = await readFile(driveId);
               if (/\.pdf$/i.test(f.name) || f.ext === "pdf") await importPdf({ source: blob, name: f.name, chapterId, kind: "reading", blobUrl, canvasFileId: f.id, say });
               else await importAny({ file: new File([blob], f.name), name: f.name, chapterId, blobUrl, canvasFileId: f.id, say });
             } catch (e) {
