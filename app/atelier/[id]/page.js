@@ -13,6 +13,7 @@ import { segmentsToMarked } from "@/lib/marked";
 import { AI_LEVELS, AI_DECLARATIONS } from "@/lib/atelierText";
 import { extractCitations, matchDocument } from "@/lib/citeParse";
 import { apaReference } from "@/lib/harvard";
+import { parsePlan } from "@/lib/planParse";
 import { fileToText, FILE_ACCEPT } from "@/lib/fileText";
 
 const STEPS = ["Sujet", "Questions et discussion", "Mes matériaux", "Littérature hors pensum", "Plan", "Rédaction", "Relecture", "Export Word / Docs"];
@@ -455,6 +456,7 @@ export default function AtelierPage() {
   }, []);
   const [busy, setBusy] = useState("");
   const [planDraft, setPlanDraft] = useState(null);
+  const [pasted, setPasted] = useState("");
   const [declaration, setDeclaration] = useState("");
   const [withHeadings, setWithHeadings] = useState(true);
   const [lang, setLang] = useState("en");
@@ -662,8 +664,26 @@ export default function AtelierPage() {
       {step === 4 && (
         <section className="space-y-3">
           <p className="text-sm text-slate-600">Problématique : {a.thesis || <em>aucune (à fixer dans « Discussion »)</em>}. Le plan proposé part de tes matériaux et de la discussion ; tu peux tout modifier.</p>
-          <button onClick={() => run("plan")} disabled={!!busy} className="px-3 py-1.5 rounded bg-slate-900 text-white text-sm disabled:opacity-50">
-            {busy === "plan" ? "Construction du plan…" : d.sections.length ? "Proposer un autre plan" : "Proposer un plan détaillé"}
+          <details className="bg-white border rounded-lg p-3 text-sm" open={!d.sections.length}>
+            <summary className="cursor-pointer font-medium">Coller un plan (par exemple celui arrêté dans la discussion)</summary>
+            <p className="text-xs text-slate-500 my-2">
+              Une partie par ligne numérotée (« 1. Titre (300 mots) »), puis ce que la partie doit contenir sur les lignes suivantes. Tu pourras tout ajuster avant d'adopter le plan.
+            </p>
+            <AutoText value={pasted} onChange={(e) => setPasted(e.target.value)} min={6} max={20} label="Plan à coller" placeholder={"1. Contexte et question de recherche (300 mots)\nCe que la partie doit dire…\n2. Design (300 mots)\n…"} />
+            <button
+              onClick={() => {
+                const sections = parsePlan(pasted);
+                if (!sections.length) return alert("Aucune partie reconnue : chaque partie doit commencer par une ligne numérotée, par exemple « 1. Titre (300 mots) ».");
+                setPlanDraft({ thesis: a.thesis || "", sections: sections.map((x) => ({ ...x, words: x.words || 300 })) });
+              }}
+              disabled={!pasted.trim()}
+              className="mt-2 px-3 py-1.5 rounded bg-slate-900 text-white disabled:opacity-50"
+            >
+              Créer les parties à partir de ce texte
+            </button>
+          </details>
+          <button onClick={() => run("plan")} disabled={!!busy} className="px-3 py-1.5 rounded bg-slate-200 hover:bg-slate-300 text-sm disabled:opacity-50">
+            {busy === "plan" ? "Construction du plan…" : d.sections.length ? "Faire proposer un autre plan par l'outil" : "Faire proposer un plan par l'outil"}
           </button>
           {planDraft && (
             <div className="bg-white border-2 border-green-700 rounded-lg p-3 space-y-3">
