@@ -7,6 +7,7 @@ import { detectMetadata } from "@/lib/metadata";
 import { harvardInText, harvardReference } from "@/lib/harvard";
 import { chunkPage, chunkKind } from "@/lib/chunking";
 import { embedTexts } from "@/lib/gemini";
+import { findDoi, openAccessPdf } from "@/lib/refLookup";
 
 export const maxDuration = 120;
 
@@ -23,7 +24,20 @@ export async function POST(request) {
     const exists = await q(`select id from documents where canvas_page_url = $1`, [key]);
     if (exists.length) return Response.json({ ok: true, skipped: "déjà importé" });
 
-    const res = await fetch(url, {
+    // Lien vers une publication : on cherche une version gratuite du texte intégral
+    const PAYWALL = /proquest\.com|ebookcentral|jstor\.org|methods\.sagepub|sk\.sagepub|tandfonline|sciencedirect|onlinelibrary\.wiley|link\.springer|oup\.com|cambridge\.org\/core|emerald\.com|routledge\.com/i;
+    let target = url;
+    const doi = findDoi(decodeURIComponent(url));
+    if (doi) {
+      const pdf = await openAccessPdf(doi);
+      if (pdf) target = pdf;
+      else
+        return Response.json({ ok: true, paywalled: true, skipped: `pas de version gratuite (DOI ${doi}) : télécharge le PDF via la bibliothèque UiT (connexion Feide), puis dépose-le dans ce chapitre` });
+    } else if (PAYWALL.test(url)) {
+      return Response.json({ ok: true, paywalled: true, skipped: "accès réservé : ouvre le lien connecté à la bibliothèque UiT (Feide), télécharge le PDF ou le chapitre, puis dépose-le dans ce chapitre" });
+    }
+
+    const res = await fetch(target, {
       redirect: "follow",
       headers: { "User-Agent": "Mozilla/5.0 (etudes-ia; usage personnel)", Accept: "text/html,application/pdf;q=0.9,*/*;q=0.8" },
       signal: AbortSignal.timeout(30000),

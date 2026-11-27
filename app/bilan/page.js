@@ -4,6 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 
+// Liens Canvas : lectures probables (à récupérer) ou liens secondaires (aide Canvas, langue, profils…)
+const ACADEMIC = /doi\.org|10\.\d{4,9}\/|jstor|sagepub|tandfonline|springer|wiley|sciencedirect|elsevier|proquest|ebookcentral|septentrio|researchgate|academia\.edu|\.pdf($|\?)|scholar|journals?\.|oup\.com|cambridge\.org|routledge|emerald|mdpi|frontiersin|plos|ncbi|semanticscholar|researchsupport/i;
+const NOISE = /instructure|canvas|topdesk|sikt\.no|uit\.no\/(ansatte|om|kontakt|tavla|student)|uit\.no\/.*(personer|ansatt)|wiseflow|lovdata|\/(no|en)\/?$|kom i gang|brukerveiledning|knowledge base|selvbetjening/i;
+function linkClass(l) {
+  if (NOISE.test(l.url) || NOISE.test(l.title)) return "noise";
+  if (ACADEMIC.test(l.url) || ACADEMIC.test(l.title)) return "academic";
+  return /^(here|website|link|lien|ici|norsk|engelsk|english)$/i.test(String(l.title).trim()) ? "noise" : "other";
+}
+
 const Dot = ({ ok, warn, children, title }) => (
   <span title={title} className={`inline-block px-1.5 rounded text-xs ${ok ? "bg-green-100 text-green-800" : warn ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700"}`}>
     {children}
@@ -70,17 +79,43 @@ export default function Bilan() {
       for (const m of plan.modules) {
         for (const c of m.chapters) {
           const items = [];
-          if (!c.pageImported) items.push("texte de la page Canvas");
-          for (const f of c.files) if (!f.imported) items.push(`PDF : ${f.name}`);
-          for (const v of c.videos || []) if (!v.imported) items.push(`vidéo : ${v.title}`);
-          for (const l of c.webLinks || []) if (!l.imported) items.push(`lien : ${l.title}`);
+          if (!c.pageImported) items.push({ type: "page", label: "texte de la page Canvas" });
+          for (const f of c.files) if (!f.imported) items.push({ type: "pdf", label: `PDF : ${f.name}`, id: f.id, name: f.name });
+          for (const v of c.videos || []) if (!v.imported) items.push({ type: "video", label: `vidéo : ${v.title}` });
+          for (const l of c.webLinks || []) if (!l.imported) items.push({ type: "link", label: l.title, url: l.url, cls: linkClass(l) });
           if (c.existingId) miss[c.existingId] = items;
-          else if (items.length) miss[`new:${c.pageUrl}`] = [`chapitre absent de l'appli : ${c.title}`];
+          else if (items.length) miss[`new:${c.pageUrl}`] = [{ type: "chapter", label: `chapitre absent de l'appli : ${c.title}` }];
         }
       }
       setCanvas(miss);
     } catch (e) {
       say(`✗ ${e.message}`);
+    }
+    setBusy("");
+  }
+
+  async function importItem(chapterId, it) {
+    setBusy(`Import : ${it.label}…`);
+    try {
+      const { importPdf } = await import("@/lib/importer");
+      if (it.type === "pdf") {
+        const { blobUrl } = await api("/api/canvas/file", { method: "POST", body: { fileId: it.id } });
+        const blob = await (await fetch(blobUrl)).blob();
+        await importPdf({ source: blob, name: it.name, chapterId, kind: "reading", blobUrl, canvasFileId: it.id, say });
+        say(`✓ ${it.name} importé`);
+      } else {
+        const r = await api("/api/canvas/web", { method: "POST", body: { chapterId, url: it.url, title: it.label } });
+        if (r.pdf) {
+          const blob = await (await fetch(r.blobUrl)).blob();
+          await importPdf({ source: blob, name: r.name, chapterId, kind: "reading", blobUrl: r.blobUrl, say });
+          say(`✓ ${it.label} : texte intégral gratuit trouvé et importé`);
+        } else if (r.skipped) say(`${r.paywalled ? "🔒" : "✗"} ${it.label} : ${r.skipped}`);
+        else say(`✓ ${it.label} importé (${r.intext})`);
+      }
+      setCanvas((c) => ({ ...c, [chapterId]: (c[chapterId] || []).filter((x) => x !== it) }));
+      await load();
+    } catch (e) {
+      say(`✗ ${it.label} : ${e.message}`);
     }
     setBusy("");
   }
@@ -242,9 +277,32 @@ export default function Bilan() {
                       <td><Dot ok={!!r.sheet_en} warn>{r.sheet_en ? new Date(r.sheet_en).toLocaleDateString("fr-FR") : r.batch_pending ? "en lot…" : "—"}</Dot></td>
                       <td className="text-xs text-slate-500">{r.notes || "—"}</td>
                       <td className="text-xs">
-                        {[...todo, ...miss.map((x) => `manque ${x}`)].map((t, i) => (
-                          <div key={i} className={t.startsWith("manque") ? "text-red-700" : "text-amber-700"}>{t}</div>
+                        {todo.map((t, i) => (
+                          <div key={`t${i}`} className="text-amber-700">
+                            {t}
+                            {t.startsWith("vidéos") && <span className="text-slate-500"> (colle les sous-titres dans le chapitre, ou importe les diapos)</span>}
+                          </div>
                         ))}
+                        {miss.filter((x) => x.cls !== "noise" && x.cls !== "other").map((x, i) => (
+                          <div key={`m${i}`} className="text-red-700 flex items-baseline gap-2">
+                            <span>{x.type === "link" ? `lecture à récupérer : ${x.label}` : `manque ${x.label}`}</span>
+                            {(x.type === "pdf" || x.type === "link") && (
+                              <button onClick={() => importItem(r.chapter_id, x)} disabled={!!busy} className="text-[11px] px-1.5 rounded bg-slate-900 text-white disabled:opacity-50">importer</button>
+                            )}
+                            {x.url && <a href={x.url} target="_blank" className="text-[11px] text-blue-700 underline">ouvrir</a>}
+                          </div>
+                        ))}
+                        {miss.some((x) => x.cls === "other" || x.cls === "noise") && (
+                          <details className="text-slate-500">
+                            <summary className="cursor-pointer">{miss.filter((x) => x.cls === "other" || x.cls === "noise").length} lien(s) secondaire(s)</summary>
+                            {miss.filter((x) => x.cls === "other" || x.cls === "noise").map((x, i) => (
+                              <div key={`n${i}`} className="flex items-baseline gap-2">
+                                <a href={x.url} target="_blank" className="underline">{x.label}</a>
+                                <button onClick={() => importItem(r.chapter_id, x)} disabled={!!busy} className="text-[11px] px-1 rounded border">importer quand même</button>
+                              </div>
+                            ))}
+                          </details>
+                        )}
                       </td>
                     </tr>
                   );

@@ -5,6 +5,7 @@ import { searchPassages } from "@/lib/search";
 import { scopeInfo } from "@/lib/scope";
 import { callClaude, callClaudeBlocks, MODELS } from "@/lib/anthropic";
 import { K_BY_SCOPE, SYSTEM_PROMPT, diversify, toDocumentBlock, renderAnswer } from "@/lib/chat";
+import { quickLiterature } from "@/lib/literature";
 
 export const maxDuration = 300;
 
@@ -13,7 +14,7 @@ export async function POST(request) {
   const denied = await guard();
   if (denied) return denied;
   await ensureSchema();
-  const { conversationId, message, oral, attachments = [] } = await request.json();
+  const { conversationId, message, oral, attachments = [], external = false } = await request.json();
   if (!message?.trim()) return Response.json({ error: "Message vide" }, { status: 400 });
 
   try {
@@ -34,6 +35,22 @@ export async function POST(request) {
     const k = K_BY_SCOPE[conv.scope_type] || 12;
     const found = await searchPassages(query, { type: conv.scope_type, id: conv.scope_id }, k * 2);
     const passages = diversify(found, k);
+    // Option « hors pensum » : vraies publications trouvées dans OpenAlex (résumés)
+    if (external) {
+      try {
+        for (const it of await quickLiterature(query)) {
+          passages.push({
+            kind: "external",
+            intext: it.intext,
+            title: it.title,
+            content: `${it.reference}\n\nAbstract: ${it.abstract}`,
+            blob_url: it.oa_url || it.url,
+            chapter_title: "Littérature hors pensum (OpenAlex)",
+            document_id: `ext-${it.id}`,
+          });
+        }
+      } catch {}
+    }
 
     const messages = [
       ...history.map((m) => ({ role: m.role, content: m.content })),
@@ -58,6 +75,9 @@ export async function POST(request) {
 
     const system =
       SYSTEM_PROMPT(scope?.label || "inconnu") +
+      (external
+        ? "\n\nHORS PENSUM : des résumés de publications réelles trouvées dans une base de données sont joints (titre « … — hors pensum »). Tu peux les citer comme littérature complémentaire (Auteur, année), en précisant que tu n'en connais que le résumé ; distingue-les clairement du pensum."
+        : "") +
       (oral
         ? "\n\nMODE ORAL : la réponse sera lue à voix haute. Réponds en 150 mots maximum, phrases simples, sans titres, listes ni tableaux. Termine par une question courte pour poursuivre l'échange."
         : "");

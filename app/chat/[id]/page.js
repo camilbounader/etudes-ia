@@ -43,6 +43,7 @@ export default function ChatPage() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [voiceLang, setVoiceLang] = useState("fr-FR");
   const [oral, setOral] = useState(false);
+  const [external, setExternal] = useState(false);
   const [speakingId, setSpeakingId] = useState(null);
   const [files, setFiles] = useState([]); // documents joints au prochain message : [{ name, text }]
   const [fileStatus, setFileStatus] = useState("");
@@ -87,7 +88,7 @@ export default function ChatPage() {
     setMessages((m) => [...m, { id: `tmp-${Date.now()}`, role: "user", content: text + (attached.length ? `\n📎 ${attached.map((f) => f.name).join(", ")}` : "") }]);
     setBusy(true);
     try {
-      const r = await api("/api/chat", { method: "POST", body: { conversationId: Number(id), message: text, oral, attachments: attached } });
+      const r = await api("/api/chat", { method: "POST", body: { conversationId: Number(id), message: text, oral, attachments: attached, external } });
       setMessages((m) => [...m, r.message]);
       if (oral) {
         setSpeakingId(r.message.id);
@@ -196,6 +197,10 @@ export default function ChatPage() {
           <label className="flex items-center gap-1">
             <input type="checkbox" checked={oral} onChange={(e) => setOral(e.target.checked)} />
             Mode conversation (réponses courtes, lues à voix haute, envoi à la fin de la dictée)
+          </label>
+          <label className="flex items-center gap-1" title="Ajoute de vraies publications hors pensum (base OpenAlex), citables comme littérature complémentaire">
+            <input type="checkbox" checked={external} onChange={(e) => setExternal(e.target.checked)} />
+            🔎 Chercher aussi hors pensum
           </label>
           <select value={voiceLang} onChange={(e) => setVoiceLang(e.target.value)} className="border rounded px-1">
             <option value="fr-FR">dictée en français</option>
