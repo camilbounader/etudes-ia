@@ -44,7 +44,7 @@ export async function POST(request, { params }) {
         model: MODELS.main,
         max_tokens: 2500,
         system: `Tu analyses un sujet de devoir universitaire pour Camil. ${PROFILE}
-En français, sections ## : « Ce qui est demandé » (reformulation précise, verbes de consigne), « Critères et attentes » (ce qui sera évalué, d'après le sujet), « Pièges à éviter » (d'après le sujet et les retours de l'examinateur), « Lectures du cours directement utiles » (citées), « Questions à clarifier » (si le sujet est ambigu).
+En français, sections ## : « Ce qui est demandé » (reformulation précise, verbes de consigne), « Structure imposée » (si le sujet liste des sous-questions ou des éléments obligatoires : la liste numérotée de TOUT ce qui doit apparaître dans la réponse, dans l'ordre ; sinon, dire que la structure est libre), « Critères et attentes » (ce qui sera évalué, d'après le sujet), « Pièges à éviter » (d'après le sujet et les retours de l'examinateur), « Lectures du cours directement utiles » (citées), « Questions à clarifier » (si le sujet est ambigu).
 ${EXAMINER_FEEDBACK}
 ${CITE}`,
         messages: [{ role: "user", content: [...passages.map(toDocumentBlock), { type: "text", text: `SUJET :\n${a.brief}${rules.focus ? `\n\nPÉRIMÈTRE DE CET ATELIER (analyse seulement cette partie) : ${rules.focus}` : ""}` }] }],
@@ -87,7 +87,11 @@ ${CITE}`,
 Total length: about ${target} words (excluding references), split across sections including a short introduction and conclusion.
 ${rulesText(a.rules)}
 Answer ONLY with JSON: {"thesis":"one-sentence thesis in English","sections":[{"title":"section title in English","words":number,"brief":"in French: what this section must do, key argument, which readings (by author, year) and which personal example from Camil's profile could fit (as a suggestion)"}]}
-The words must add up to about ${target}. Use 4 to 8 sections. Prefer an argumentative progression (dialectical when relevant), no artificial headings if the assignment is a short essay.
+The words must add up to about ${target}.
+FIRST decide which kind of assignment this is:
+(a) STRUCTURED QUESTION: the brief lists numbered sub-questions, steps or required elements (e.g. "1) choose a topic 2) research context and tentative research question 3) methodological approach 4) data collection 5) trustworthiness and ethics 6) limitations", or "provide context, formulate a research question, propose an analysis approach, explain how you would apply it, identify challenges and strategies"). Then the outline MUST follow exactly those required elements, in the brief's order, one section per element (merge two elements only when the brief groups them in one point; skip a purely administrative step such as "choose a topic", which becomes one sentence of the introduction). Section titles mirror the brief's own wording so the examiner can tick each point. Add only a very short introduction (and a short conclusion if useful). Allocate words according to the weight of each element (methodological choices and their justification deserve the most).
+(b) OPEN ESSAY: then use 4 to 8 sections with an argumentative progression (dialectical when relevant), no artificial headings if the essay is short.
+Each section "brief" must say which required element(s) of the assignment it answers.
 ${PERSONAL_EXAMPLES_RULE}
 Available course readings:\n${docList}`,
         messages: [
@@ -135,7 +139,7 @@ Available course readings:\n${docList}`,
         model: MODELS.main,
         max_tokens: 3500,
         system: `Tu relis l'ensemble du devoir de Camil, en français. ${PROFILE}
-Sections ## : « Verdict » (3 lignes : répond-il au sujet ? note probable selon les critères), « Argumentation et structure » (fil conducteur, transitions, équilibre des parties), « Usage du corpus » (exactitude, profondeur critique, lectures manquantes utiles — citées), « Réflexion personnelle et exemples », « Forme » (d'après les contrôles fournis), « Les 5 corrections prioritaires » (liste ordonnée, chacune avec la phrase concernée).
+Sections ## : « Verdict » (3 lignes : répond-il au sujet ? note probable selon les critères), « Couverture des consignes » (si le sujet liste des sous-questions ou éléments obligatoires : chaque élément avec ✓ traité, ◐ traité trop vite ou ✗ absent, et où il est traité), « Argumentation et structure » (fil conducteur, transitions, équilibre des parties), « Usage du corpus » (exactitude, profondeur critique, lectures manquantes utiles — citées), « Réflexion personnelle et exemples », « Forme » (d'après les contrôles fournis), « Les 5 corrections prioritaires » (liste ordonnée, chacune avec la phrase concernée).
 ${STYLE_CHARTER}
 ${EXAMINER_FEEDBACK}
 ${CITE}`,
