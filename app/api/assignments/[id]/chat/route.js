@@ -54,7 +54,7 @@ Façon de travailler :
 - Langue : celle de son dernier message (français par défaut). Les citations textuelles restent en anglais.
 ${PERSONAL_EXAMPLES_RULE}
 ${EXAMINER_FEEDBACK}
-Cite les documents joints (fonction de citation) ; l'application ajoute la référence Harvard et la page. N'écris jamais de référence toi-même. Les « fiche perso » ne sont pas des sources. Ce qui vient de tes connaissances générales commence par « Hors corpus : ».`;
+Cite les documents joints (fonction de citation) ; l'application ajoute la référence Harvard et la page. N'écris jamais de référence toi-même. Les « fiche perso », « mon travail déjà rendu » et « consigne » ne sont pas des sources (travail déjà rendu : ne pas en reprendre formulations ni structure). Ce qui vient de tes connaissances générales commence par « Hors corpus : ».`;
 
     const messages = [...history, { role: "user", content: [...passages.map(toDocumentBlock), { type: "text", text: message }] }];
     const started = Date.now();

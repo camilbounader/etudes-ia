@@ -9,7 +9,7 @@ import Sheets from "@/components/Sheets";
 import Works from "@/components/Works";
 import ChapterNav from "@/components/ChapterNav";
 
-const KINDS = { reading: "Lecture du corpus", slides: "Diapos du cours", screens: "Captures d'écran", notes: "Fiche perso", assignment: "Devoir / examen", page: "Page Canvas", web: "Page web", video: "Vidéo", other: "Autre" };
+const KINDS = { reading: "Lecture du corpus", slides: "Diapos du cours", screens: "Captures d'écran", notes: "Fiche perso", own: "Mon travail déjà rendu", assignment: "Consigne de devoir / examen", page: "Page Canvas", web: "Page web", video: "Vidéo", other: "Autre" };
 
 function pageRange(d) {
   if (d.kind === "video") return d.status === "ready" ? `${d.chunk_count} extraits` : "transcription à coller";
@@ -63,7 +63,13 @@ function DocumentRow({ d, onChange }) {
         <div className="flex-1">
           <p className="font-medium">{d.title}</p>
           <p className="text-sm text-slate-600">
-            ({d.intext}) · {pageRange(d)} · PDF {d.page_count} p. · {d.chunk_count} passages · {KINDS[d.kind] || d.kind}
+            (<input defaultValue={d.intext} title="Citation courte « Auteur, année » : modifiable"
+              onBlur={async (e) => { const v = e.target.value.trim(); if (v && v !== d.intext) { await api(`/api/documents/${d.id}`, { method: "PATCH", body: { intext: v } }); onChange(); } }}
+              className="bg-transparent border-b border-dashed border-slate-300 w-44 text-slate-700" />) · {pageRange(d)} · PDF {d.page_count} p. · {d.chunk_count} passages ·{" "}
+            <select value={d.kind} onChange={async (e) => { await api(`/api/documents/${d.id}`, { method: "PATCH", body: { kind: e.target.value } }); onChange(); }}
+              className="bg-transparent border rounded text-xs px-1">
+              {Object.entries(KINDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
             {d.status !== "ready" && d.kind !== "video" && <span className="ml-2 text-amber-600">import incomplet</span>}
             {lowConfidence && <span className="ml-2 text-amber-600">numérotation à vérifier</span>}
           </p>

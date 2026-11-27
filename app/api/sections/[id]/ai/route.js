@@ -11,7 +11,7 @@ import { runChecks } from "@/lib/checks";
 
 export const maxDuration = 300;
 
-const CITE = `Cite the attached corpus documents (citation feature); the app adds the Harvard reference with the exact page. NEVER write references yourself. "fiche perso" documents are not sources. General knowledge must start with "Outside the corpus:".`;
+const CITE = `Cite the attached corpus documents (citation feature); the app adds the Harvard reference with the exact page. NEVER write references yourself. "fiche perso", "mon travail déjà rendu" (Camil's already-submitted work: never reuse its wording or structure) and "consigne" documents are not sources. General knowledge must start with "Outside the corpus:".`;
 
 // POST { mode: "model" | "critique" | "translate", lang?: "fr" }
 export async function POST(request, { params }) {

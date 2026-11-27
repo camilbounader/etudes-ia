@@ -11,7 +11,8 @@ const KINDS = {
   slides: "Diapos",
   screens: "Captures",
   notes: "Fiche perso",
-  assignment: "Devoir / examen",
+  own: "Mon travail déjà rendu",
+  assignment: "Consigne de devoir / examen",
   other: "Autre",
 };
 

@@ -5,7 +5,7 @@ import { q } from "@/lib/db";
 // Une référence « à corriger » : nom de fichier, nom Windows court (CHANDL~1),
 // référence complète au lieu de « Auteur, année », ou erreur de détection.
 const BAD_REF_SQL = `(
-  d.kind in ('reading','web','other') and not coalesce((d.metadata->>'ref_ok')::boolean, false) and (
+  d.kind in ('reading','web','other','slides') and not coalesce((d.metadata->>'ref_ok')::boolean, false) and (
     d.intext is null or d.intext = d.title or d.intext like '%~%' or length(d.intext) > 90
     or d.intext !~ '(\\d{4}|n\\.d\\.)' or d.metadata ? 'error'
   )

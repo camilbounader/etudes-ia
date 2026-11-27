@@ -11,7 +11,7 @@ import { PROFILE, STYLE_CHARTER, EXAMINER_FEEDBACK } from "@/lib/writingRules";
 export const maxDuration = 300;
 
 const KIND_LABEL = { selfcheck: "self-check question", qc: "Question & Comment (Q&C)", ld: "learning diary", other: "assignment" };
-const CITE = `Cite the attached corpus documents (the citation feature); the app adds the Harvard reference with the exact page. NEVER write references or page numbers yourself. Documents titled "fiche perso" are personal notes, not sources: never cite them. Anything from general knowledge must start with "Outside the corpus:" (or « Hors corpus : » in French).`;
+const CITE = `Cite the attached corpus documents (the citation feature); the app adds the Harvard reference with the exact page. NEVER write references or page numbers yourself. Documents titled "fiche perso" (personal notes), "mon travail déjà rendu" (Camil's already-submitted work: never reuse its wording or structure) or "consigne" are not sources: never cite them. Anything from general knowledge must start with "Outside the corpus:" (or « Hors corpus : » in French).`;
 
 function prompts(mode, work, chapterTitle) {
   const task = `${KIND_LABEL[work.kind] || "task"} for the chapter « ${chapterTitle} »`;

@@ -16,7 +16,7 @@ const normName = (s) => normText(String(s || "").replace(/\.[a-z0-9]+$/i, ""));
 const PROMPT = `Tu tries les fichiers d'études d'un étudiant de Master (cours en anglais à UiT, notes souvent en français).
 Pour chaque fichier, choisis :
 - "chapter" : l'identifiant du chapitre le plus probable dans la liste fournie (utilise le chemin du dossier, le nom du fichier et le début du texte), ou null si impossible à dire ;
-- "kind" : "reading" (lecture du corpus : article, chapitre de livre, rapport), "slides" (PDF de diapos du cours), "screens" (captures d'écran : Word presque sans texte mais avec des images, ou image), "notes" (fiche explicative ou de révision, résumé, notes de cours rédigées), "assignment" (sujet d'examen, consigne de devoir, devoir rendu), "other" ;
+- "kind" : "reading" (lecture du corpus : article, chapitre de livre, rapport), "slides" (PDF de diapos du cours), "screens" (captures d'écran : Word presque sans texte mais avec des images, ou image), "notes" (fiche explicative ou de révision, résumé, notes de cours rédigées), "assignment" (sujet d'examen, consigne de devoir), "own" (devoir déjà rédigé ou rendu par l'étudiant lui-même : assignment, learning diary, Q&C, examen rendu), "other" ;
 - "action" : "import" ou "skip" ;
 - "reason" : 3 à 10 mots en français.
 Règles pour "skip" :

@@ -12,7 +12,7 @@ import { extractCitations, matchDocument } from "@/lib/citeParse";
 
 export const maxDuration = 300;
 
-const CITE = `Cite les documents joints (fonction de citation) ; l'application ajoute la référence et la page. N'écris jamais de référence toi-même. Les « fiche perso » ne sont pas des sources. Ce qui vient de tes connaissances générales commence par « Hors corpus : ».`;
+const CITE = `Cite les documents joints (fonction de citation) ; l'application ajoute la référence et la page. N'écris jamais de référence toi-même. Les « fiche perso », « mon travail déjà rendu » et « consigne » ne sont pas des sources (travail déjà rendu : ne pas en reprendre formulations ni structure). Ce qui vient de tes connaissances générales commence par « Hors corpus : ».`;
 
 const RULES_PROMPT = `Extract the formal rules of this university assignment. Answer ONLY with JSON:
 {"words_target":number|null,"words_min":number|null,"words_max":number|null,"pages":"text or null","min_readings":number|null,
