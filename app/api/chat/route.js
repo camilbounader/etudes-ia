@@ -1,7 +1,8 @@
 import { guard } from "@/lib/auth";
 import { ensureSchema } from "@/lib/schema";
 import { q } from "@/lib/db";
-import { searchPassages } from "@/lib/search";
+import { searchPassages, passagesForNamedAuthors } from "@/lib/search";
+import { callWithWeb, WEB_RULE } from "@/lib/webCheck";
 import { scopeInfo } from "@/lib/scope";
 import { callClaude, callClaudeBlocks, MODELS } from "@/lib/anthropic";
 import { K_BY_SCOPE, SYSTEM_PROMPT, diversify, toDocumentBlock, renderAnswer } from "@/lib/chat";
@@ -35,6 +36,10 @@ export async function POST(request) {
     const k = K_BY_SCOPE[conv.scope_type] || 12;
     const found = await searchPassages(query, { type: conv.scope_type, id: conv.scope_id }, k * 2);
     const passages = diversify(found, k);
+    try {
+      const seen = new Set(passages.map((p) => p.id));
+      for (const p of await passagesForNamedAuthors(message, query, 3, 6)) if (!seen.has(p.id)) passages.push(p);
+    } catch {}
     // Option « hors pensum » : vraies publications trouvées dans OpenAlex (résumés)
     if (external) {
       try {
@@ -75,6 +80,7 @@ export async function POST(request) {
 
     const system =
       SYSTEM_PROMPT(scope?.label || "inconnu") +
+      (oral ? "" : `\n\n${WEB_RULE}`) +
       (external
         ? "\n\nHORS PENSUM : des résumés de publications réelles trouvées dans une base de données sont joints (titre « … — hors pensum »). Tu peux les citer comme littérature complémentaire (Auteur, année), en précisant que tu n'en connais que le résumé ; distingue-les clairement du pensum."
         : "") +
@@ -89,7 +95,8 @@ export async function POST(request) {
     let truncated = false;
     let convo = messages;
     for (let round = 0; round < 3; round++) {
-      const r = await callClaudeBlocks({ feature: "chat", model: MODELS.main, system, messages: convo, max_tokens: oral ? 1200 : 8000 });
+      const args = { feature: "chat", model: MODELS.main, system, messages: convo, max_tokens: oral ? 1200 : 8000 };
+      const r = round === 0 && !oral ? await callWithWeb(callClaudeBlocks, args) : await callClaudeBlocks(args);
       blocks = blocks.concat(r.blocks);
       usage = usage
         ? { ...usage, input_tokens: usage.input_tokens + r.usage.input_tokens, output_tokens: usage.output_tokens + r.usage.output_tokens }

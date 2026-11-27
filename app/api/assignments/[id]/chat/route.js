@@ -1,7 +1,8 @@
 import { guard } from "@/lib/auth";
 import { ensureSchema } from "@/lib/schema";
 import { q } from "@/lib/db";
-import { searchPassages } from "@/lib/search";
+import { searchPassages, passagesForNamedAuthors } from "@/lib/search";
+import { callWithWeb, WEB_RULE } from "@/lib/webCheck";
 import { callClaudeBlocks, MODELS } from "@/lib/anthropic";
 import { diversify, toDocumentBlock, renderAnswer } from "@/lib/chat";
 import { loadAssignment, scopeOf, rulesText, materialsText, literatureText } from "@/lib/atelier";
@@ -30,6 +31,11 @@ export async function POST(request, { params }) {
     const query = `${a.brief?.slice(0, 600) || ""}\n${a.thesis || ""}\n${message.length < 80 && lastUser ? lastUser.content : ""}\n${message}`;
     const found = await searchPassages(query, scopeOf(a), 45);
     const passages = diversify(found, 15, 3);
+    // auteurs cités dans le message : leurs passages (avec pages) sont ajoutés
+    try {
+      const seen = new Set(passages.map((p) => p.id));
+      for (const p of await passagesForNamedAuthors(message, query, 3, 8)) if (!seen.has(p.id)) passages.push(p);
+    } catch {}
 
     const plan = sections.map((s, i) => `${i + 1}. ${s.title} (${s.words || "?"} mots) : ${s.brief || ""}`).join("\n");
     const materials = materialsText(a);
@@ -53,6 +59,8 @@ Façon de travailler :
 - Rédaction dans la discussion : seulement s'il le demande ; dans ce cas, texte complet, d'un seul tenant.
 - Langue : celle de son dernier message (français par défaut). Les citations textuelles restent en anglais.
 ${PERSONAL_EXAMPLES_RULE}
+${WEB_RULE}
+- Pages : si une lecture n'est pas dans les passages joints mais qu'une « fiche perso » jointe donne sa référence avec une page, reprends cette page en précisant « page d'après ta fiche, à vérifier dans le PDF ». Ne dis pas que tu n'as pas la page sans avoir regardé les fiches jointes ; si vraiment aucune source jointe ne la donne, dis quel document importer pour l'avoir.
 ${EXAMINER_FEEDBACK}
 Cite les documents joints (fonction de citation) ; l'application ajoute la référence Harvard et la page. N'écris jamais de référence toi-même. Les « fiche perso », « mon travail déjà rendu » et « consigne » ne sont pas des sources (travail déjà rendu : ne pas en reprendre formulations ni structure). Ce qui vient de tes connaissances générales commence par « Hors corpus : ».`;
 
@@ -62,7 +70,8 @@ Cite les documents joints (fonction de citation) ; l'application ajoute la réf�
     let truncated = false;
     let convo = messages;
     for (let round = 0; round < 3; round++) {
-      const r = await callClaudeBlocks({ feature: "atelier : discussion", model: MODELS.main, system, messages: convo, max_tokens: 6000 });
+      const args = { feature: "atelier : discussion", model: MODELS.main, system, messages: convo, max_tokens: 6000 };
+      const r = round === 0 ? await callWithWeb(callClaudeBlocks, args) : await callClaudeBlocks(args);
       blocks = blocks.concat(r.blocks);
       truncated = r.stop === "max_tokens";
       if (!truncated || Date.now() - started > 150000) break;
