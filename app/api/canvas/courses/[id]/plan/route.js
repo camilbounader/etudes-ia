@@ -21,7 +21,7 @@ async function pool(items, n, fn) {
 }
 
 // fichiers importables : PDF, PowerPoint, Word, images, audio et vidéo
-const IMPORTABLE = /\.(pdf|pptx|ppt|docx|png|jpe?g|webp|mp3|m4a|wav|aac|mp4|mov|webm)$/i;
+const IMPORTABLE = /\.(pdf|pptx|ppsx|pptm|ppsm|potx|ppt|pps|docx|png|jpe?g|webp|mp3|m4a|wav|aac|mp4|mov|webm)$/i;
 const isImportable = (f) => /pdf/i.test(f?.["content-type"] || "") || IMPORTABLE.test(f?.display_name || f?.filename || "");
 
 // GET : plan d'import d'un cours Canvas
