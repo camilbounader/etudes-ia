@@ -18,7 +18,7 @@ function prompts(mode, work, chapterTitle) {
   if (mode === "hints") {
     return {
       model: MODELS.main,
-      max_tokens: 2500,
+      max_tokens: 4000,
       system: `Tu aides Camil à préparer sa réponse à une ${task}. ${PROFILE}
 Donne-lui des PISTES en français, sans rédiger la réponse :
 ## Ce qui est demandé
@@ -54,7 +54,7 @@ ${CITE}`,
   // critique
   return {
     model: MODELS.main,
-    max_tokens: 3000,
+    max_tokens: 5000,
     system: `Tu relis la réponse de Camil à une ${task} et tu la critiques en français, sans la réécrire entièrement.
 ${PROFILE}
 Structure :

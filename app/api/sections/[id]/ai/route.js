@@ -81,7 +81,7 @@ Cite les documents joints ; l'application ajoute la référence et la page.`;
     const { blocks } = await callClaudeBlocks({
       feature: `atelier : ${mode === "model" ? "modèle de partie" : "critique de partie"}`,
       model: mode === "model" ? MODELS.best : MODELS.main,
-      max_tokens: mode === "model" ? 8000 : 3000,
+      max_tokens: mode === "model" ? 8000 : 5000,
       system,
       messages: [{ role: "user", content: [...passages.map(toDocumentBlock), { type: "text", text: user }] }],
     });

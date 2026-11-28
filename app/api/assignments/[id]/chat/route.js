@@ -70,7 +70,7 @@ Cite les documents joints (fonction de citation) ; l'application ajoute la r√©f√
     let truncated = false;
     let convo = messages;
     for (let round = 0; round < 3; round++) {
-      const args = { feature: "atelier : discussion", model: MODELS.main, system, messages: convo, max_tokens: 6000 };
+      const args = { feature: "atelier : discussion", model: MODELS.main, system, messages: convo, max_tokens: 6000, continueOnLimit: false };
       const r = round === 0 ? await callWithWeb(callClaudeBlocks, args) : await callClaudeBlocks(args);
       blocks = blocks.concat(r.blocks);
       truncated = r.stop === "max_tokens";

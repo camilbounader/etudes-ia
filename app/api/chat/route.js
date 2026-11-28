@@ -95,7 +95,7 @@ export async function POST(request) {
     let truncated = false;
     let convo = messages;
     for (let round = 0; round < 3; round++) {
-      const args = { feature: "chat", model: MODELS.main, system, messages: convo, max_tokens: oral ? 1200 : 8000 };
+      const args = { feature: "chat", model: MODELS.main, system, messages: convo, max_tokens: oral ? 1200 : 8000, continueOnLimit: false };
       const r = round === 0 && !oral ? await callWithWeb(callClaudeBlocks, args) : await callClaudeBlocks(args);
       blocks = blocks.concat(r.blocks);
       usage = usage

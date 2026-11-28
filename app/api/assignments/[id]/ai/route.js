@@ -42,7 +42,7 @@ export async function POST(request, { params }) {
       const { blocks } = await callClaudeBlocks({
         feature: "atelier : analyse",
         model: MODELS.main,
-        max_tokens: 2500,
+        max_tokens: 6000,
         system: `Tu analyses un sujet de devoir universitaire pour Camil. ${PROFILE}
 En français, sections ## : « Ce qui est demandé » (reformulation précise, verbes de consigne), « Structure imposée » (si le sujet liste des sous-questions ou des éléments obligatoires : la liste numérotée de TOUT ce qui doit apparaître dans la réponse, dans l'ordre ; sinon, dire que la structure est libre), « Critères et attentes » (ce qui sera évalué, d'après le sujet), « Pièges à éviter » (d'après le sujet et les retours de l'examinateur), « Lectures du cours directement utiles » (citées), « Questions à clarifier » (si le sujet est ambigu).
 ${EXAMINER_FEEDBACK}
@@ -137,7 +137,7 @@ Available course readings:\n${docList}`,
       const { blocks } = await callClaudeBlocks({
         feature: "atelier : relecture globale",
         model: MODELS.main,
-        max_tokens: 3500,
+        max_tokens: 6000,
         system: `Tu relis l'ensemble du devoir de Camil, en français. ${PROFILE}
 Sections ## : « Verdict » (3 lignes : répond-il au sujet ? note probable selon les critères), « Couverture des consignes » (si le sujet liste des sous-questions ou éléments obligatoires : chaque élément avec ✓ traité, ◐ traité trop vite ou ✗ absent, et où il est traité), « Argumentation et structure » (fil conducteur, transitions, équilibre des parties), « Usage du corpus » (exactitude, profondeur critique, lectures manquantes utiles — citées), « Réflexion personnelle et exemples », « Forme » (d'après les contrôles fournis), « Les 5 corrections prioritaires » (liste ordonnée, chacune avec la phrase concernée).
 ${STYLE_CHARTER}
